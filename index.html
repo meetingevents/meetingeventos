@@ -1199,7 +1199,10 @@ function normFecha(f) {
 }
 
 // Normaliza tipo de evento
-function normTipo(t) {
+function normTipo(t, codigo) {
+  // Excepción: evento de presentación de producto (Gisele - Rational)
+  // Se clasifica aparte aunque el Sheets lo tenga marcado como "Otros"
+  if (codigo === 'E3086') return 'Presentación de Producto';
   if (!t) return 'Otros';
   t = t.trim();
   if (t === 'Cumpleaños 18' || t === 'CUMPLEAÑOS 18') return 'Cumpleaños 18';
@@ -1209,6 +1212,7 @@ function normTipo(t) {
   if (t.toLowerCase().includes('teambuilding') || t.toLowerCase().includes('team')) return 'Teambuilding';
   if (t.toLowerCase().includes('reunión') || t.toLowerCase().includes('reunion')) return 'Reunión de amigos';
   if (t.toLowerCase().includes('afterwork')) return 'Afterwork';
+  if (t.toLowerCase().includes('presentación') || t.toLowerCase().includes('presentacion')) return 'Presentación de Producto';
   return t;
 }
 
@@ -1282,7 +1286,7 @@ async function loadRealtimeData() {
         cl:      r.cl,
         fe:      normFecha(r.fe),
         fv:      normFecha(r.fv),
-        t:       normTipo(r.t),
+        t:       normTipo(r.t, r.c),
         p:       r.p || '',
         s:       r.s || '',
         resp:    r.resp || '',
