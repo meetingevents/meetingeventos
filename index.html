@@ -1248,22 +1248,20 @@ async function loadRealtimeData() {
     const { comisiones, monthlyTotals } = json.data;
 
     // ── Actualizar MONTHLY_TOTALS y YEAR_TOTALS desde Sheets ──
-    // Solo actualizar si los valores son razonables (< 500.000€)
     if (monthlyTotals && monthlyTotals.totals) {
       const t = monthlyTotals.totals;
       Object.keys(t).forEach(yr => {
         if (yr === '_year') return;
         const y = parseInt(yr);
         if (!isNaN(y) && Array.isArray(t[yr])) {
-          // Validate each month value
-          const valid = t[yr].every(v => typeof v === 'number' && v < 500000);
+          const valid = t[yr].every(v => typeof v === 'number' && v >= 0 && v < 100000);
           if (valid) MONTHLY_TOTALS[y] = t[yr];
         }
       });
       if (t._year) {
         Object.keys(t._year).forEach(y => {
           const v = t._year[y];
-          if (typeof v === 'number' && v < 500000) {
+          if (typeof v === 'number' && v >= 0 && v < 200000) {
             YEAR_TOTALS[parseInt(y)] = v;
           }
         });
@@ -1273,24 +1271,13 @@ async function loadRealtimeData() {
     // ── Actualizar array D desde COMISIONES ──
     if (comisiones && comisiones.rows && comisiones.rows.length > 0) {
       const raw = comisiones.rows;
-      console.log(`Recibidos ${raw.length} eventos desde COMISIONES`);
+      console.log(`Recibidos ${raw.length} filas desde COMISIONES`);
 
-      // Validar que los datos tienen sentido antes de reemplazar D
-      const maxTB = Math.max(...raw.map(r => r.b || 0));
-      const avgTB = raw.reduce((a,r) => a + (r.b||0), 0) / raw.length;
+      // Agrupar por código — un evento puede tener varias filas (local+decoración+fotógrafo)
+      const merged = mergeComisiones(raw);
+      console.log(`Agrupados en ${merged.length} eventos únicos`);
 
-      if (maxTB > 20000 || avgTB > 5000) {
-        console.warn(`Datos sospechosos (max TB: ${maxTB}, avg: ${avgTB.toFixed(0)}) — usando array D local`);
-        DATA_LOADED = true;
-        DATA_LOADING = false;
-        updateBackendBtn('ok');
-        const p = document.querySelector('.page.on')?.id?.replace('page-','');
-        if (p) goPage(p);
-        return;
-      }
-
-      // Rebuild D array con datos validados
-      const newD = raw.map(r => ({
+      const newD = merged.map(r => ({
         c:       r.c,
         cl:      r.cl,
         fe:      normFecha(r.fe),
@@ -1299,7 +1286,7 @@ async function loadRealtimeData() {
         p:       r.p || '',
         s:       r.s || '',
         resp:    r.resp || '',
-        b:       r.b || 0,
+        b:       (typeof r.b === 'number' && r.b >= 0 && r.b < 20000) ? r.b : 0,
         e:       r.e || 'FUTURO',
         factura: r.fac || 'N',
         q1:      normQ(r.q1),
@@ -1311,14 +1298,12 @@ async function loadRealtimeData() {
         pend:    r.pend || 0,
         ctaMtg:  (normQ(r.q1)==='cta'?r.c1:0)+(normQ(r.q2)==='cta'?r.c2:0),
         jaEf:    (normQ(r.q1)==='ja' ?r.c1:0)+(normQ(r.q2)==='ja' ?r.c2:0),
-      })).filter(r => r.c && r.fe); // solo filas con código y fecha
+      })).filter(r => r.c && r.fe);
 
-      if (newD.length > 10) { // mínimo razonable de eventos
+      if (newD.length > 50) { // umbral razonable: ya sabemos que hay 300+ filas reales
         D.length = 0;
         newD.forEach(e => D.push(e));
-        // Recalcular totales desde los datos frescos del Sheets
-        recalcTotalsFromD();
-        console.log(`✅ ${D.length} eventos cargados, totales recalculados desde Sheets`);
+        console.log(`✅ ${D.length} eventos cargados desde COMISIONES`);
       } else {
         console.warn(`Solo ${newD.length} eventos recibidos — usando array D local`);
       }
