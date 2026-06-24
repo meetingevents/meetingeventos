@@ -1272,45 +1272,12 @@ async function loadRealtimeData() {
       }
     }
 
-    // ── Actualizar array D desde COMISIONES ──
-    if (comisiones && comisiones.rows && comisiones.rows.length > 0) {
-      const raw = comisiones.rows;
-      console.log(`Recibidos ${raw.length} filas desde COMISIONES`);
-
-      // Agrupar por código — un evento puede tener varias filas (local+decoración+fotógrafo)
-      const merged = mergeComisiones(raw);
-      console.log(`Agrupados en ${merged.length} eventos únicos`);
-
-      const newD = merged.map(r => ({
-        c:       r.c,
-        cl:      r.cl,
-        fe:      normFecha(r.fe),
-        fv:      normFecha(r.fv),
-        t:       normTipo(r.t, r.c),
-        p:       r.p || '',
-        s:       r.s || '',
-        resp:    r.resp || '',
-        b:       (typeof r.b === 'number' && r.b >= 0 && r.b < 20000) ? r.b : 0,
-        e:       r.e || 'FUTURO',
-        factura: r.fac || 'N',
-        q1:      normQ(r.q1),
-        c1:      r.c1 || 0,
-        m1:      r.m1 || '',
-        q2:      normQ(r.q2),
-        c2:      r.c2 || 0,
-        m2:      r.m2 || '',
-        pend:    r.pend || 0,
-        ctaMtg:  (normQ(r.q1)==='cta'?r.c1:0)+(normQ(r.q2)==='cta'?r.c2:0),
-        jaEf:    (normQ(r.q1)==='ja' ?r.c1:0)+(normQ(r.q2)==='ja' ?r.c2:0),
-      })).filter(r => r.c && r.fe);
-
-      if (newD.length > 50) { // umbral razonable: ya sabemos que hay 300+ filas reales
-        D.length = 0;
-        newD.forEach(e => D.push(e));
-        console.log(`✅ ${D.length} eventos cargados desde COMISIONES`);
-      } else {
-        console.warn(`Solo ${newD.length} eventos recibidos — usando array D local`);
-      }
+    // ── Array D: NO se sobreescribe automáticamente ──
+    // Los 123/140/66 eventos curados manualmente (con tipos y correcciones
+    // verificadas) son la fuente de verdad. El backend solo actualiza los
+    // totales mensuales/anuales, que sí están validados contra el Sheets.
+    if (comisiones && comisiones.rows) {
+      console.log(`Backend devolvió ${comisiones.rows.length} filas — array D local se mantiene intacto`);
     }
 
     DATA_LOADED = true;
