@@ -1275,12 +1275,47 @@ async function loadRealtimeData() {
       console.log('✅ Totales actualizados desde Sheets en tiempo real');
     }
 
-    // ── Array D: NO se sobreescribe automáticamente ──
-    // Los 123/140/66 eventos curados manualmente (con tipos y correcciones
-    // verificadas) son la fuente de verdad. El backend solo actualiza los
-    // totales mensuales/anuales, que sí están validados contra el Sheets.
-    if (comisiones && comisiones.rows) {
-      console.log(`Backend devolvió ${comisiones.rows.length} filas — array D local se mantiene intacto`);
+    // ── Actualizar array D desde COMISIONES en tiempo real ──
+    if (comisiones && comisiones.rows && comisiones.rows.length > 0) {
+      const raw = comisiones.rows;
+      console.log(`Recibidos ${raw.length} filas desde COMISIONES`);
+
+      // Agrupar por código — un evento puede tener varias filas (local+decoración+fotógrafo)
+      const merged = mergeComisiones(raw);
+      console.log(`Agrupados en ${merged.length} eventos únicos`);
+
+      const newD = merged.map(r => ({
+        c:       r.c,
+        cl:      r.cl,
+        fe:      normFecha(r.fe),
+        fv:      normFecha(r.fv),
+        t:       normTipo(r.t, r.c),
+        p:       r.p || '',
+        s:       r.s || '',
+        resp:    r.resp || '',
+        b:       (typeof r.b === 'number' && r.b >= 0 && r.b < 20000) ? r.b : 0,
+        e:       r.e || 'FUTURO',
+        factura: r.fac || 'N',
+        q1:      normQ(r.q1),
+        c1:      r.c1 || 0,
+        m1:      r.m1 || '',
+        q2:      normQ(r.q2),
+        c2:      r.c2 || 0,
+        m2:      r.m2 || '',
+        pend:    r.pend || 0,
+        ctaMtg:  (normQ(r.q1)==='cta'?r.c1:0)+(normQ(r.q2)==='cta'?r.c2:0),
+        jaEf:    (normQ(r.q1)==='ja' ?r.c1:0)+(normQ(r.q2)==='ja' ?r.c2:0),
+      })).filter(r => r.c && r.fe);
+
+      // Umbral de seguridad: ya sabemos que hay ~300+ eventos reales en COMISIONES
+      // Si el backend devuelve menos de 200, algo va mal — no reemplazar D
+      if (newD.length > 200) {
+        D.length = 0;
+        newD.forEach(e => D.push(e));
+        console.log(`✅ ${D.length} eventos actualizados desde COMISIONES en tiempo real`);
+      } else {
+        console.warn(`Solo ${newD.length} eventos recibidos (esperados 200+) — manteniendo array D local`);
+      }
     }
 
     DATA_LOADED = true;
@@ -1667,7 +1702,7 @@ const D=[
   {c:"E3894",cl:"PAU - SILVIA",fe:"13/03/2026",fv:"15/02/2026",t:"Cumpleaños 18",p:"KOUTO",s:"Local",b:198,e:"COBRADO"},
   {c:"E3849",cl:"MARÍA ALBA - JORDI CASALS",fe:"28/03/2026",fv:"20/02/2026",t:"Boda",p:"THE LOT",s:"Restaurante",b:500,e:"COBRADO"},
   {c:"E3292",cl:"ONA - MERCE",fe:"07/03/2026",fv:"25/02/2026",t:"Cumpleaños 18",p:"COM A CASA",s:"Local",b:181,e:"COBRADO"},
-  {c:"E3964",cl:"BORJA - PRODUCTORA",fe:"20/03/2026",fv:"05/03/2026",t:"Cena de Empresa",p:"SHOWROOM",s:"Espacio",b:350,e:"COBRADO"},
+  {c:"E3964",cl:"BORJA - PRODUCTORA",fe:"20/03/2026",fv:"05/03/2026",t:"Cena de Empresa",p:"SHOWROOM",s:"Espacio",b:140,e:"COBRADO"},
   {c:"E3757",cl:"LAIA DELRIU",fe:"07/03/2026",fv:"10/03/2026",t:"Cumpleaños 18",p:"SALA ADJUNTA",s:"Espacio",b:220,e:"COBRADO"},
   {c:"E3739",cl:"ANA BELEN",fe:"28/03/2026",fv:"01/03/2026",t:"Cumpleaños 18",p:"COM A CASA",s:"Local",b:181,e:"COBRADO"},
   {c:"E3941",cl:"ROGER PAYRÓ",fe:"21/03/2026",fv:"10/03/2026",t:"Cumpleaños",p:"KOUTO",s:"Local",b:198,e:"COBRADO"},
