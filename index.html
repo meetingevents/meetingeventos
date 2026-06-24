@@ -1251,14 +1251,28 @@ async function loadRealtimeData() {
 
     const { comisiones, monthlyTotals } = json.data;
 
-    // ── MONTHLY_TOTALS / YEAR_TOTALS: NO se sobreescriben automáticamente ──
-    // Los valores semilla (verificados manualmente contra el Sheets) son
-    // la fuente de verdad estable. El Apps Script de totales mensuales
-    // todavía tiene un bug de lectura de columna que devuelve ceros —
-    // hasta que se corrija y verifique, esto queda desactivado para
-    // que el dashboard nunca muestre datos en blanco.
+    // ── Actualizar MONTHLY_TOTALS y YEAR_TOTALS desde Sheets ──
+    // Backend verificado: columna TB_COL=12 corregida, da datos correctos
     if (monthlyTotals && monthlyTotals.totals) {
-      console.log('Backend devolvió monthlyTotals — ignorado, usando valores semilla estables');
+      const t = monthlyTotals.totals;
+      Object.keys(t).forEach(yr => {
+        if (yr === '_year') return;
+        const y = parseInt(yr);
+        if (!isNaN(y) && Array.isArray(t[yr]) && t[yr].length === 12) {
+          const valid = t[yr].every(v => typeof v === 'number' && v >= 0 && v < 100000);
+          const hasData = t[yr].some(v => v > 0);
+          if (valid && hasData) MONTHLY_TOTALS[y] = t[yr];
+        }
+      });
+      if (t._year) {
+        Object.keys(t._year).forEach(y => {
+          const v = t._year[y];
+          if (typeof v === 'number' && v > 0 && v < 200000) {
+            YEAR_TOTALS[parseInt(y)] = v;
+          }
+        });
+      }
+      console.log('✅ Totales actualizados desde Sheets en tiempo real');
     }
 
     // ── Array D: NO se sobreescribe automáticamente ──
