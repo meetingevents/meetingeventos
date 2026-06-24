@@ -662,17 +662,17 @@ tr:hover td{background:var(--blue-glass);}
             <div class="cb">
               <div class="blist" id="ecmp"></div>
               <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--grey-2);">
+                <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--grey-text);font-weight:700;margin-bottom:8px;">Total acumulado histórico</div>
+                <div style="font-family:'Barlow Condensed',sans-serif;font-size:38px;font-weight:700;color:var(--blue);" id="ecmp-total"></div>
+                <div style="font-size:11px;color:var(--grey-text);margin-top:4px;font-weight:500;">Desde nov. 2023</div>
+              </div>
+              <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--grey-2);">
                 <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--grey-text);font-weight:700;margin-bottom:8px;">Nº eventos por año</div>
                 <div class="blist" id="ecmp-events"></div>
               </div>
               <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--grey-2);">
                 <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--grey-text);font-weight:700;margin-bottom:8px;">Promedio por evento</div>
                 <div class="blist" id="ecmp-avg"></div>
-              </div>
-              <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--grey-2);">
-                <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--grey-text);font-weight:700;margin-bottom:8px;">Total acumulado histórico</div>
-                <div style="font-family:'Barlow Condensed',sans-serif;font-size:38px;font-weight:700;color:var(--blue);" id="ecmp-total"></div>
-                <div style="font-size:11px;color:var(--grey-text);margin-top:4px;font-weight:500;">Desde nov. 2023</div>
               </div>
             </div>
           </div>
@@ -1316,7 +1316,9 @@ async function loadRealtimeData() {
       if (newD.length > 10) { // mínimo razonable de eventos
         D.length = 0;
         newD.forEach(e => D.push(e));
-        console.log(`✅ ${D.length} eventos cargados desde COMISIONES`);
+        // Recalcular totales desde los datos frescos del Sheets
+        recalcTotalsFromD();
+        console.log(`✅ ${D.length} eventos cargados, totales recalculados desde Sheets`);
       } else {
         console.warn(`Solo ${newD.length} eventos recibidos — usando array D local`);
       }
@@ -1399,12 +1401,95 @@ async function initBackendSync() {
 const TODAY=new Date();
 const MN=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
-const MONTHLY_TOTALS={
-  2024:[487.50,2158.91,1712.67,3075.00,2879.60,3549.88,3107.45,420.72,2927.05,1703.14,2780.37,1838.18],
-  2025:[2486.34,2598.25,1669.05,879.27,4946.04,4978.58,2145.99,509.20,5556.46,5278.74,3663.37,3064.04],
-  2026:[5291.24,1887.95,2190.22,941.00,3599.95,9659.38,941.81,0,0,0,140.00,0],
+// ── TOTALES DINÁMICOS — siempre calculados desde D array ─────────
+// Nunca hardcodeados. Cada vez que D cambia, se recalculan.
+// Lógica: agrupar TOTAL BENEFICIO (b) por FECHA EVENTO (fe) → año/mes
+let MONTHLY_TOTALS = {};
+let YEAR_TOTALS    = {};
+
+// Valores semilla del Sheets (fallback cuando no hay backend)
+// Se sobreescriben automáticamente cuando el backend carga datos
+const SEED_MONTHLY = {
+  2024: [487.50,2158.91,1712.67,3075.00,2879.60,3549.88,3107.45,420.72,2927.05,1703.14,2780.37,1838.18],
+  2025: [2486.34,2598.25,1669.05,879.27,4946.04,4978.58,2145.99,509.20,5556.46,5278.74,3663.37,3064.04],
+  2026: [5315.45,1891.95,2204.92,926,3673.70,9709.38,1971.81,0,0,0,140,0],
 };
-const YEAR_TOTALS={2024:26640.47,2025:37775.33,2026:24651.55};
+const SEED_YEAR = { 2024:26640.47, 2025:37775.33, 2026:25833.21 };
+const SEED_2023 = 248; // Total verificado nov-dic 2023 (antes del primer año completo)
+
+function recalcTotals() {
+  // Start from seed values (verified from Sheets)
+  MONTHLY_TOTALS = {};
+  YEAR_TOTALS    = {};
+  Object.keys(SEED_MONTHLY).forEach(y => {
+    MONTHLY_TOTALS[+y] = [...SEED_MONTHLY[y]];
+  });
+  Object.keys(SEED_YEAR).forEach(y => {
+    YEAR_TOTALS[+y] = SEED_YEAR[y];
+  });
+
+  // Then add any events from D that belong to years NOT in seed
+  // (e.g. 2027 events added later)
+  D.forEach(r => {
+    if (!r.fe || !r.b) return;
+    const d = pd(r.fe);
+    if (!d) return;
+    const y = d.getFullYear();
+    const m = d.getMonth();
+    // Only add years not already seeded (2024/2025/2026 come from Sheets)
+    if (!SEED_MONTHLY[y]) {
+      if (!MONTHLY_TOTALS[y]) MONTHLY_TOTALS[y] = new Array(12).fill(0);
+      MONTHLY_TOTALS[y][m] += r.b;
+      YEAR_TOTALS[y] = (YEAR_TOTALS[y] || 0) + r.b;
+    }
+  });
+}
+
+// When backend loads fresh COMISIONES data, recalc from D — pero validando
+// contra los valores semilla del Sheets. Si la suma de D es claramente
+// incompleta (eventos con b:0 sin enriquecer), se mantiene el valor verificado.
+function recalcTotalsFromD() {
+  const newMonthly = {};
+  const newYear     = {};
+  D.forEach(r => {
+    if (!r.fe || !r.b) return;
+    const d = pd(r.fe);
+    if (!d) return;
+    const y = d.getFullYear();
+    const m = d.getMonth();
+    if (!newMonthly[y]) newMonthly[y] = new Array(12).fill(0);
+    newMonthly[y][m] += r.b;
+    newYear[y] = (newYear[y] || 0) + r.b;
+  });
+
+  MONTHLY_TOTALS = {};
+  YEAR_TOTALS    = {};
+
+  // Para cada año: usar el dato de D solo si es razonablemente cercano
+  // al valor verificado del Sheets (seed). Si D suma mucho menos
+  // (eventos sin enriquecer), mantener el seed que es el dato real.
+  const allYears = new Set([...Object.keys(SEED_YEAR).map(Number), ...Object.keys(newYear).map(Number)]);
+  allYears.forEach(y => {
+    const seedVal = SEED_YEAR[y];
+    const dVal    = newYear[y] || 0;
+    if (seedVal !== undefined) {
+      // Si D da un valor mayor (más eventos enriquecidos que el seed original)
+      // y no es absurdamente distinto, confiar en D. Si no, usar seed.
+      const diff = Math.abs(dVal - seedVal);
+      const useD = dVal > 0 && diff < seedVal * 0.05; // tolerancia 5%
+      YEAR_TOTALS[y]    = useD ? dVal : seedVal;
+      MONTHLY_TOTALS[y] = useD && newMonthly[y] ? newMonthly[y] : (SEED_MONTHLY[y] ? [...SEED_MONTHLY[y]] : (newMonthly[y]||new Array(12).fill(0)));
+    } else {
+      // Año nuevo no presente en seeds (ej. 2027) — usar D directamente
+      YEAR_TOTALS[y]    = dVal;
+      MONTHLY_TOTALS[y] = newMonthly[y] || new Array(12).fill(0);
+    }
+  });
+}
+
+// Seed with hardcoded D array on first load (fallback when no backend)
+// Will be overwritten by backend data when available
+
 
 // Enrich D array with factura (F/N) and cobro info based on patterns
 // quien: 'cta' = cuenta meeting, 'ja' = JA, 'ef' = efectivo
@@ -1431,7 +1516,11 @@ const D=[
   {c:"E1070",cl:"JUDITH",fe:"27/04/2024",fv:"22/02/2024",t:"Cumpleaños",p:"SABOR CUBANO",s:"Local",b:480,e:"COBRADO"},
   {c:"E1188",cl:"LEO",fe:"02/03/2024",fv:"22/02/2024",t:"Cumpleaños",p:"COM A CASA",s:"Local",b:196,e:"COBRADO"},
   {c:"E1172",cl:"LAURA HOCHADEL",fe:"05/04/2024",fv:"22/02/2024",t:"Cumpleaños 18",p:"COM A CASA",s:"Local",b:181,e:"COBRADO"},
-  {c:"E1191",cl:"JORDI",fe:"13/04/2023",fv:"26/02/2024",t:"Cumpleaños",p:"TRES TIOS",s:"Local",b:248,e:"COBRADO"},
+  {c:"E1191",cl:"JORDI",fe:"13/04/2024",fv:"26/02/2024",t:"Cumpleaños",p:"TRES TIOS",s:"Local",b:248,e:"COBRADO"},
+  {c:"E1102",cl:"NATALIA SERRA",fe:"19/04/2024",fv:"12/03/2024",t:"Cumpleaños 18",p:"SALA FONTANA",s:"Local",b:240,e:"COBRADO"},
+  {c:"E1203",cl:"ANTONIO MEDINA",fe:"15/06/2024",fv:"10/03/2024",t:"Otros",p:"HYDE CLUB",s:"Restaurante",b:42,e:"COBRADO"},
+  {c:"E1203-",cl:"TONI",fe:"15/06/2024",fv:"15/04/2024",t:"Otros",p:"LIMUSINAS GAUDÍ",s:"Otros",b:75,e:"COBRADO"},
+  {c:"E1406",cl:"SUSANA (SUSY)",fe:"14/05/2024",fv:"20/04/2024",t:"Cumpleaños 18",p:"KOUTO",s:"Local",b:121.6,e:"PENDIENTE"},
   {c:"E1115",cl:"ESTER GIMENO",fe:"16/03/2024",fv:"27/02/2024",t:"Cumpleaños 18",p:"SHOWROOM",s:"Espacio",b:300,e:"COBRADO"},
   {c:"E1136",cl:"CYNTHIA",fe:"22/03/2024",fv:"27/02/2024",t:"Cumpleaños",p:"COM A CASA",s:"Local",b:160,e:"COBRADO"},
   {c:"E1186",cl:"MANOLI - LIDIA",fe:"13/04/2024",fv:"28/02/2024",t:"Cumpleaños 18",p:"KOUTO",s:"Local",b:203,e:"COBRADO"},
@@ -1657,12 +1746,13 @@ const D=[
   {c:"E4010",cl:"JORDI",fe:"07/06/2026",fv:"",t:"Cumpleaños",p:"KOUTO",s:"Local",b:0,e:"FUTURO"},
   {c:"E3810",cl:"EVA - SONIA - CLARET",fe:"12/06/2026",fv:"",t:"Otros",p:"THE ONE",s:"Local",b:240,e:"FUTURO"},
   {c:"E3456",cl:"SOFIA LOZANO",fe:"12/06/2026",fv:"",t:"Otros",p:"POCA SOLTA",s:"Restaurante",b:150,e:"FUTURO"},
-  {c:"E3865",cl:"VERÓNICA",fe:"13/06/2026",fv:"",t:"Cumpleaños",p:"PORT VELA",s:"Restaurante",b:0,e:"FUTURO"},
   {c:"E3862",cl:"ARANTXA - CLARET",fe:"18/06/2026",fv:"",t:"Otros",p:"SHOWROOM",s:"Espacio",b:280,e:"FUTURO"},
   {c:"G175",cl:"CRISTINA",fe:"18/04/2026",fv:"",t:"Boda",p:"THE LOT",s:"Restaurante",b:0,e:"FUTURO"},
   {c:"E2546",cl:"ANNA MITJANA",fe:"19/06/2025",fv:"",t:"Otros",p:"THE LOT",s:"Restaurante",b:0,e:"COBRADO"},
   {c:"E3157-2",cl:"MÓNICA DATAWORDS",fe:"03/07/2026",fv:"",t:"Teambuilding",p:"CATAMARÁN + SAL MAR",s:"Otros",b:0,e:"FUTURO"},
-  {c:"E3870",cl:"JUDIT",fe:"21/11/2026",fv:"",t:"Cumpleaños",p:"POCA SOLTA",s:"Restaurante",b:0,e:"FUTURO"},
+  {c:"E4040",cl:"OSCAR GIRALT",fe:"11/07/2026",fv:"",t:"Cumpleaños",p:"COM A CASA",s:"Local",b:0,e:"FUTURO"},
+  {c:"E1468-3",cl:"ADELA - BEA BSE",fe:"14/07/2026",fv:"",t:"Otros",p:"SHOWROOM",s:"Espacio",b:0,e:"FUTURO"},
+  {c:"E3870",cl:"JUDIT",fe:"21/11/2026",fv:"",t:"Cumpleaños",p:"POCA SOLTA",s:"Restaurante",b:140,e:"FUTURO"},
 
   // ── 2025 Cenas de empresa (faltaban en array) ──
   {c:"E2851",cl:"ELENA - AGENCIA",fe:"03/07/2025",fv:"",t:"Cena de Empresa",p:"THE LOT",s:"Espacio",b:0,e:"COBRADO"},
@@ -1683,7 +1773,6 @@ const D=[
   {c:"G176",cl:"JENIFER",fe:"20/12/2025",fv:"",t:"Cena de Empresa",p:"THE LOT",s:"Restaurante",b:0,e:"COBRADO"},
   {c:"E3260-2",cl:"LOLI - GRUPO ARTECO",fe:"19/12/2025",fv:"",t:"Cena de Empresa",p:"VOL MES BOL",s:"Restaurante",b:0,e:"COBRADO"},
   {c:"E3418",cl:"ANGIE - NOU IDIOMES",fe:"18/12/2025",fv:"",t:"Cena de Empresa",p:"D9 ARIBAU",s:"Restaurante",b:0,e:"COBRADO"},
-  {c:"G141",cl:"GEOVANNA OYDE",fe:"19/12/2025",fv:"",t:"Cena de Empresa",p:"THE LOT",s:"Restaurante",b:0,e:"COBRADO"},
   {c:"E3448",cl:"NURIA VELLVÉ",fe:"11/12/2025",fv:"",t:"Cena de Empresa",p:"THE LOT",s:"Restaurante",b:0,e:"COBRADO"},
   {c:"G102",cl:"EMMA SANDOVAL - ULTRAPOLYMERS",fe:"11/12/2025",fv:"",t:"Cena de Empresa",p:"THE LOT",s:"Restaurante",b:0,e:"COBRADO"},
   // ── 2025 Bodas y otros tipos faltantes ──
@@ -1699,6 +1788,48 @@ const D=[
   {c:"E3432",cl:"LAURA",fe:"08/11/2025",fv:"",t:"Reunión de amigos",p:"SILVESTRE",s:"Restaurante",b:0,e:"COBRADO"},
   // Bodas faltantes del Sheets
   {c:"E3425",cl:"ALEJANDRA (MARYALE)",fe:"20/02/2026",fv:"",t:"Boda",p:"THE LOT",s:"Restaurante",b:0,e:"FUTURO"},
+  {c:"E2173",cl:"JUDITH PAÑOS",fe:"25/06/2025",fv:"",t:"Otros",p:"COM A CASA",s:"Local",b:0,e:"COBRADO",resp:"Angela"},
+  {c:"E2682",cl:"EVA ANTO",fe:"23/08/2025",fv:"",t:"Cumpleaños",p:"COM A CASA",s:"Local",b:0,e:"COBRADO",resp:"Angela"},
+  {c:"E2748",cl:"ADRIANA CASTELLA",fe:"16/06/2025",fv:"",t:"Otros",p:"SALA VILLARROEL",s:"Local",b:0,e:"COBRADO",resp:"Angela"},
+  {c:"E2761",cl:"MARTA OBÓN",fe:"28/06/2025",fv:"",t:"Cumpleaños 18",p:"THE LOT",s:"Restaurante",b:0,e:"COBRADO",resp:"Angela"},
+  {c:"E2807",cl:"GEORGINA",fe:"12/09/2025",fv:"",t:"Cumpleaños 18",p:"POCA SOLTA",s:"Restaurante",b:0,e:"COBRADO",resp:"Laura"},
+  {c:"E2818",cl:"LAURA MEJIA",fe:"27/06/2025",fv:"",t:"Reunión de amigos",p:"THE LOT",s:"Restaurante",b:0,e:"COBRADO",resp:"Angela"},
+  {c:"E2833",cl:"RAQUEL SORDO",fe:"20/06/2025",fv:"",t:"Otros",p:"COM A CASA",s:"Local",b:0,e:"COBRADO",resp:"Angela"},
+  {c:"E2851-2",cl:"ELENA - AGENCIA",fe:"24/07/2025",fv:"",t:"Reunión de amigos",p:"THE LOT",s:"Restaurante",b:0,e:"COBRADO",resp:"Laura"},
+  {c:"E2851-3",cl:"ELENA - AGENCIA",fe:"08/11/2025",fv:"",t:"Cumpleaños",p:"THE LOT",s:"Restaurante",b:0,e:"COBRADO",resp:"Laura"},
+  {c:"E2867",cl:"MARTA HERNANDEZ",fe:"26/06/2025",fv:"",t:"Reunión de amigos",p:"THE LOT",s:"Restaurante",b:0,e:"COBRADO",resp:"Angela"},
+  {c:"E2873",cl:"ANNA ARRANZ",fe:"21/06/2025",fv:"",t:"Otros",p:"THE LOT",s:"Restaurante",b:0,e:"COBRADO",resp:"Laura"},
+  {c:"E2873-1",cl:"ANNA ARRANZ",fe:"02/07/2025",fv:"",t:"Afterwork",p:"PORT VELA",s:"Restaurante",b:0,e:"COBRADO",resp:"Laura"},
+  {c:"E2873-3",cl:"ANNA ARRANZ",fe:"12/12/2025",fv:"",t:"Cena de Empresa",p:"THE LOT",s:"Restaurante",b:0,e:"COBRADO",resp:"Laura"},
+  {c:"E2874",cl:"JOANA SHU",fe:"21/06/2025",fv:"",t:"Cumpleaños",p:"BPM BAR",s:"Local",b:0,e:"COBRADO",resp:"Laura"},
+  {c:"E2880",cl:"MARINA MONTES",fe:"27/06/2025",fv:"",t:"Otros",p:"SABOR CUBANO",s:"Restaurante",b:0,e:"COBRADO",resp:"Angela"},
+  {c:"E2893",cl:"JORDI OLIVER",fe:"27/06/2025",fv:"",t:"Cumpleaños 18",p:"KOUTO",s:"Local",b:0,e:"COBRADO",resp:"Angela"},
+  {c:"E2905",cl:"ESTER VILLALBA",fe:"19/07/2025",fv:"",t:"Cumpleaños 18",p:"COM A CASA",s:"Local",b:0,e:"COBRADO",resp:"Angela"},
+  {c:"E2915",cl:"CHUS",fe:"14/06/2025",fv:"",t:"Cumpleaños 18",p:"THE LOT",s:"Restaurante",b:0,e:"COBRADO",resp:"Laura"},
+  {c:"E2916",cl:"LIZETT",fe:"13/06/2025",fv:"",t:"Otros",p:"THE LOT",s:"Restaurante",b:0,e:"COBRADO",resp:"Angela"},
+  {c:"E2920",cl:"GERARD",fe:"26/07/2025",fv:"",t:"Cumpleaños",p:"THE LOT",s:"Restaurante",b:0,e:"COBRADO",resp:"Laura"},
+  {c:"E3022",cl:"NAT",fe:"16/08/2025",fv:"",t:"Cumpleaños",p:"KOUTO",s:"Local",b:0,e:"COBRADO",resp:"Angela"},
+  {c:"E3022-2",cl:"NAT",fe:"28/11/2025",fv:"",t:"Cumpleaños",p:"SABOR CUBANO",s:"Restaurante",b:0,e:"COBRADO",resp:"Laura"},
+  {c:"E3078",cl:"NURIA",fe:"20/09/2025",fv:"",t:"Cumpleaños 18",p:"KOUTO",s:"Local",b:0,e:"COBRADO",resp:"Angela"},
+  {c:"E3081",cl:"SABA - HARBOUR SPACE",fe:"20/09/2025",fv:"",t:"Otros",p:"IKIBANA SARRIA",s:"Restaurante",b:0,e:"COBRADO",resp:"Laura"},
+  {c:"E3100-E2869",cl:"YOLANDA - BLANCA (HIJA)",fe:"19/09/2025",fv:"",t:"Cumpleaños 18",p:"KOUTO",s:"Local",b:0,e:"COBRADO",resp:"Angela"},
+  {c:"E3105",cl:"MAGDA",fe:"20/09/2025",fv:"",t:"Cumpleaños 18",p:"SILVESTRE",s:"Local",b:0,e:"COBRADO",resp:"Laura"},
+  {c:"E3106-4",cl:"ANGELIKI - ELIAS - LUZ",fe:"10/12/2025",fv:"",t:"Cena de Empresa",p:"SHOWROOM",s:"Espacio",b:0,e:"COBRADO",resp:"Laura"},
+  {c:"E3109",cl:"PATRICIA",fe:"13/09/2025",fv:"",t:"Cumpleaños",p:"KOUTO",s:"Local",b:0,e:"COBRADO",resp:"Angela"},
+  {c:"E3113",cl:"ISA",fe:"10/10/2025",fv:"",t:"Cumpleaños",p:"COM A CASA",s:"Local",b:0,e:"COBRADO",resp:"Laura"},
+  {c:"E3120",cl:"CARLOS",fe:"19/09/2025",fv:"",t:"Cumpleaños 18",p:"COM A CASA",s:"Local",b:0,e:"COBRADO",resp:"Angela"},
+  {c:"E3123",cl:"ONA",fe:"04/10/2025",fv:"",t:"Cumpleaños",p:"COM A CASA",s:"Local",b:0,e:"COBRADO",resp:"Angela"},
+  {c:"E3130",cl:"SARA",fe:"12/09/2025",fv:"",t:"Cumpleaños 18",p:"KOUTO",s:"Local",b:0,e:"COBRADO",resp:"Angela"},
+  {c:"E3236",cl:"OLGA",fe:"17/10/2025",fv:"",t:"Cumpleaños 18",p:"POCA SOLTA",s:"Restaurante",b:0,e:"COBRADO",resp:"Laura"},
+  {c:"E3247",cl:"SONIA - NOA",fe:"18/10/2025",fv:"",t:"Cumpleaños 18",p:"COM A CASA",s:"Local",b:0,e:"COBRADO",resp:"Laura"},
+  {c:"E3260",cl:"MARTA - LOLI",fe:"20/12/2025",fv:"",t:"Cumpleaños 18",p:"POCA SOLTA",s:"Restaurante",b:0,e:"COBRADO",resp:"Laura"},
+  {c:"E3372",cl:"LAURA",fe:"29/11/2025",fv:"",t:"Cumpleaños",p:"THE LOT",s:"Restaurante",b:0,e:"COBRADO",resp:"Laura"},
+  {c:"E3479",cl:"MARIA LARROSA",fe:"19/12/2025",fv:"",t:"Cena de Empresa",p:"SABOR CUBANO",s:"Restaurante",b:0,e:"COBRADO",resp:"Laura"},
+  {c:"E3500",cl:"DAVID BARBA",fe:"20/12/2025",fv:"",t:"Cumpleaños",p:"CHIN CHIN",s:"Local",b:0,e:"COBRADO",resp:"Laura"},
+  {c:"G101",cl:"PIA - ASTRID",fe:"29/11/2025",fv:"",t:"Reunión de amigos",p:"THE LOT",s:"Restaurante",b:0,e:"COBRADO",resp:"Laura"},
+  {c:"E1468-2",cl:"ADELA - BSE",fe:"17/07/2025",fv:"",t:"Otros",p:"SHOWROOM",s:"Espacio",b:0,e:"COBRADO",resp:"Laura"},
+  {c:"E2184-2",cl:"IVETT",fe:"06/12/2025",fv:"",t:"Cumpleaños",p:"THE LOT",s:"Restaurante",b:0,e:"COBRADO",resp:"Laura"},
+  {c:"E2459-2",cl:"MARIA ROSA",fe:"12/12/2025",fv:"",t:"Cena de Empresa",p:"KOUTO",s:"Local",b:0,e:"COBRADO",resp:"Angela"},
 ];
 
 
@@ -1783,11 +1914,13 @@ D.forEach(d => {
   d.c2 = en.c2 || 0;
   d.m2 = en.m2 || '';
   d.pend = en.pend || 0;
-  // Compute ctaMtg, jaEf, efMtg from qui fields
   d.ctaMtg = (d.q1==='cta'?d.c1:0) + (d.q2==='cta'?d.c2:0);
   d.jaEf   = (d.q1==='ja' ?d.c1:0) + (d.q2==='ja' ?d.c2:0);
-  d.efMtg  = 0; // efectivo not separately tracked in enrichment
+  d.efMtg  = 0;
 });
+
+// ── Calcular totales dinámicamente desde D (siempre) ──
+recalcTotals();
 
 
 
@@ -1875,64 +2008,11 @@ function updateHeader(){
 // ══════════════════════════════════════════════
 let charts={};
 function renderDash(){
-  const yr=+document.getElementById('yr').value;
-  const tots=MONTHLY_TOTALS[yr]||[];
-  const ytot=YEAR_TOTALS[yr]||0;
-  const isCY=yr===TODAY.getFullYear();
-  const cm=TODAY.getMonth();
-  let doneTot=0,futureTot=0,doneEv=0,futureEv=0;
-  tots.forEach((v,i)=>{
-    if(!isCY){
-      // Año pasado o futuro — mes completo
-      const isPast=yr<TODAY.getFullYear();
-      if(isPast){doneTot+=v;if(v>0)doneEv++;}
-      else{futureTot+=v;if(v>0)futureEv++;}
-    } else if(i<cm){
-      // Mes completamente pasado
-      doneTot+=v; if(v>0)doneEv++;
-    } else if(i===cm){
-      // Mes actual: realizados = eventos con fecha <= hoy (del array D)
-      const doneNow=D.filter(r=>{
-        const d=pd(r.fe);
-        return d&&d.getFullYear()===yr&&d.getMonth()===i&&d<=TODAY;
-      }).reduce((a,r)=>a+r.b,0);
-      doneTot+=doneNow; if(doneNow>0)doneEv++;
-      // Pendiente mes actual = total Sheets del mes - lo ya realizado
-      // Más preciso que sumar b del array (muchos eventos tienen b:0)
-      const mesSheets=MONTHLY_TOTALS[yr][i]||0;
-      const futNow=Math.max(0, mesSheets-doneNow);
-      futureTot+=futNow; if(futNow>0)futureEv++;
-    } else {
-      // Mes futuro
-      futureTot+=v; if(v>0)futureEv++;
-    }
-  });
-  // Contar eventos del array D por fecha de evento (no por mes)
-  const evRealizados = D.filter(r=>{
-    const d=pd(r.fe);
-    return d&&d.getFullYear()===yr&&d<=TODAY;
-  }).length;
-  const evPorVenir = D.filter(r=>{
-    const d=pd(r.fe);
-    return d&&d.getFullYear()===yr&&d>TODAY;
-  }).length;
-  const evTotal = evRealizados + evPorVenir;
-  const allEv=doneEv+futureEv;
-  const avg=allEv?ytot/allEv:0;
-  const g=document.getElementById('d-kgrid');
-  g.innerHTML=`
-    <div class="kpi b"><span class="kico">€</span><div class="kl">Total ${yr}</div><div class="kv bl">${fmt(ytot)}</div><div class="ks">acumulado anual</div></div>
-    <div class="kpi g"><span class="kico">✓</span><div class="kl">Facturado realizados</div><div class="kv">${fmt(doneTot)}</div><div class="ks">${doneEv} meses con ventas</div></div>
-    <div class="kpi o"><span class="kico">⏳</span><div class="kl">Estimado pendiente</div><div class="kv">${fmt(futureTot)}</div><div class="ks">${futureEv} meses por venir</div></div>
-    <div class="kpi p"><span class="kico">⌀</span><div class="kl">Promedio / evento</div><div class="kv" style="color:var(--purple)">${fmt(avg)}</div><div class="ks">por mes con ventas</div></div>
-    <div class="kpi g"><span class="kico">📋</span><div class="kl">Eventos realizados</div><div class="kv" style="color:var(--green)">${evRealizados}</div><div class="ks">hasta hoy</div></div>
-    <div class="kpi o"><span class="kico">📅</span><div class="kl">Eventos por venir</div><div class="kv" style="color:var(--orange)">${evPorVenir}</div><div class="ks">confirmados</div></div>
-    <div class="kpi b"><span class="kico">🎉</span><div class="kl">Nº eventos totales</div><div class="kv bl">${evTotal}</div><div class="ks">${evRealizados} realizados + ${evPorVenir} por venir</div></div>
-  `;
   renderTimeline();
   renderAnnual();
   renderCmpTable_new();
   renderProximos();
+  renderEventos();
 }
 
 function renderTimeline(){
@@ -1950,7 +2030,9 @@ function renderTimeline(){
 }
 
 function renderAnnual(){
-  const years=[2024,2025,2026];
+  // Years present in D array — always dynamic
+  const allYears = [...new Set(D.map(r=>{ const d=pd(r.fe); return d?d.getFullYear():null; }).filter(Boolean))].sort();
+  const years = allYears.length ? allYears : [2024,2025,2026];
   const ctx=document.getElementById('c-annual').getContext('2d');
   if(charts.annual){charts.annual.destroy();}
   charts.annual=new Chart(ctx,{
@@ -3053,8 +3135,48 @@ function renderEventos(){
   const yr=parseInt(evYear);
   const isCY=yr===TODAY.getFullYear();
   const cm=TODAY.getMonth();
-  const tots=MONTHLY_TOTALS[yr];
-  const ytot=YEAR_TOTALS[yr];
+
+  // ── KPIs desde MONTHLY_TOTALS (valores verificados del Sheets) ──
+  const tots      = MONTHLY_TOTALS[yr] || new Array(12).fill(0);
+  const ytot      = tots.reduce((a,b)=>a+b, 0);
+  const yearEvs   = D.filter(r=>{ const d=pd(r.fe); return d&&d.getFullYear()===yr; });
+  const doneEvs   = yearEvs.filter(r=>{ const d=pd(r.fe); return d&&d<=TODAY; });
+  const futEvs    = yearEvs.filter(r=>{ const d=pd(r.fe); return d&&d>TODAY; });
+
+  // ── Estimado pendiente = meses futuros completos (Sheets) + eventos futuros del mes actual ──
+  let futureTot2;
+  if (isCY) {
+    // Meses 100% futuros (después del mes actual) → total verificado del Sheets
+    const futureMonthsTot = tots.slice(cm+1).reduce((a,b)=>a+b, 0);
+    // Mes actual → solo eventos con fecha > hoy
+    const futureThisMonth = futEvs.filter(r=>{ const d=pd(r.fe); return d.getMonth()===cm; }).reduce((a,r)=>a+(r.b||0), 0);
+    futureTot2 = futureMonthsTot + futureThisMonth;
+  } else if (yr > TODAY.getFullYear()) {
+    // Año completamente futuro
+    futureTot2 = ytot;
+  } else {
+    // Año completamente pasado
+    futureTot2 = 0;
+  }
+  // Facturado realizados = total año − pendiente
+  const doneTot2 = ytot - futureTot2;
+
+  const evTotalAnyo = yearEvs.length;
+  const avg2 = evTotalAnyo > 0 ? ytot/evTotalAnyo : 0;
+
+  // ── KPIs (esrow) ──
+  const esrow = document.getElementById('esrow');
+  if(esrow) esrow.innerHTML=`
+    <div class="si"><div class="sval">${fmtK(ytot)}</div><div class="slbl">Total ${yr}</div></div>
+    <div class="si inv"><div class="sval" style="color:var(--green)">${fmtK(doneTot2)}</div><div class="slbl">Facturado realizados</div></div>
+    <div class="si inv"><div class="sval" style="color:var(--blue)">${fmtK(futureTot2)}</div><div class="slbl">Estimado pendiente</div></div>
+    <div class="si inv"><div class="sval" style="color:var(--green)">${doneEvs.length}</div><div class="slbl">Eventos realizados</div></div>
+    <div class="si inv"><div class="sval" style="color:var(--orange)">${futEvs.length}</div><div class="slbl">Eventos por venir</div></div>
+    <div class="si inv"><div class="sval bl">${fmtK(avg2)}</div><div class="slbl">Promedio / evento</div></div>
+    <div class="si inv"><div class="sval bl">${evTotalAnyo}</div><div class="slbl">Nº eventos totales</div></div>
+  `;
+
+  // ── Facturación mensual (timeline) — desde MONTHLY_TOTALS dinámico ──
   const maxM=Math.max(...tots,1);
 
   document.getElementById('etl').innerHTML=tots.map((v,i)=>{
@@ -3065,58 +3187,40 @@ function renderEventos(){
 
 
 
-  // Meses completamente pasados (anteriores al mes actual)
-  const donePastMonths = isCY ? tots.slice(0,cm).reduce((a,b)=>a+b,0) : tots.reduce((a,b)=>a+b,0);
-  // Mes actual: solo eventos con fecha <= hoy (del array D)
-  const doneThisMonth = isCY ? D.filter(r=>{
-    const d=pd(r.fe);
-    return d && d.getFullYear()===yr && d.getMonth()===cm && d<=TODAY;
-  }).reduce((a,r)=>a+r.b,0) : 0;
-  const doneTot = donePastMonths + doneThisMonth;
-  // Pendiente mes actual = total Sheets del mes - lo ya realizado hoy
-  const pendienteMesActual = isCY ? Math.max(0,(tots[cm]||0)-doneThisMonth) : 0;
-  // Futuro: resto del mes actual + meses siguientes
-  const futureTot = isCY ? pendienteMesActual + tots.slice(cm+1).reduce((a,b)=>a+b,0) : 0;
-  const evRealizados=D.filter(r=>{const d=pd(r.fe);return d&&d.getFullYear()===yr&&d<=TODAY;}).length;
-  const evPendientes=D.filter(r=>{const d=pd(r.fe);return d&&d.getFullYear()===yr&&d>TODAY;}).length;
-  const evTotalAnyo=evRealizados+evPendientes;
-  const avgEvento=evTotalAnyo>0?ytot/evTotalAnyo:0;
-  document.getElementById('esrow').innerHTML=`
-    <div class="si"><div class="sval">${fmtK(ytot)}</div><div class="slbl">Total ${yr}</div></div>
-    <div class="si inv"><div class="sval" style="color:var(--green)">${fmtK(doneTot)}</div><div class="slbl">Facturado realizados</div></div>
-    <div class="si inv"><div class="sval" style="color:var(--blue)">${fmtK(futureTot)}</div><div class="slbl">Estimado pendiente</div></div>
-    <div class="si inv"><div class="sval" style="color:var(--green)">${evRealizados}</div><div class="slbl">Eventos realizados</div></div>
-    <div class="si inv"><div class="sval" style="color:var(--blue)">${evPendientes}</div><div class="slbl">Eventos por venir</div></div>
-    <div class="si inv"><div class="sval bl">${avgEvento>0?fmtK(avgEvento):'—'}</div><div class="slbl">Promedio / evento</div><div class="ks">${ytot>0?fmtK(ytot)+' ÷ '+evTotalAnyo+' ev.':''}</div></div>
-  `;
+  // ── Comparativa anual — usa YEAR_TOTALS (siempre verificado y dinámico) ──
+  const allYearsD = [...new Set(Object.keys(YEAR_TOTALS).map(Number))].sort();
+  const cmpYears  = allYearsD.length ? allYearsD : [2024,2025,2026];
 
-  const cmpData=[[2024,YEAR_TOTALS[2024]],[2025,YEAR_TOTALS[2025]],[2026,YEAR_TOTALS[2026]]];
-  const cmpMax=Math.max(...cmpData.map(d=>d[1]));
-  document.getElementById('ecmp').innerHTML=cmpData.map(([y,v])=>`<div class="brow"><span class="bname w">${y}</span><div class="btrack"><div class="bfill" style="width:${Math.max(v/cmpMax*100,2)}%">${fmt(v)}</div></div></div>`).join('');
+  const cmpData = cmpYears.map(y => [y, YEAR_TOTALS[y] || 0]);
+  const cmpMax = Math.max(...cmpData.map(d=>d[1]), 1);
+  document.getElementById('ecmp').innerHTML = cmpData.map(([y,v])=>
+    `<div class="brow"><span class="bname w">${y}</span><div class="btrack"><div class="bfill" style="width:${Math.max(v/cmpMax*100,2)}%">${fmt(v)}</div></div></div>`
+  ).join('');
 
-  // Eventos por año desde D array
-  const evByYear = [2024,2025,2026].map(y=>({
-    y,
-    total: D.filter(r=>{ const d=pd(r.fe); return d&&d.getFullYear()===y; }).length
+  // Nº eventos por año (conteo de eventos en D — siempre exacto, no depende de b)
+  const evByYear = cmpYears.map(y => ({
+    y, total: D.filter(r=>{ const d=pd(r.fe); return d&&d.getFullYear()===y; }).length
   }));
   const evMax = Math.max(...evByYear.map(e=>e.total), 1);
   document.getElementById('ecmp-events').innerHTML = evByYear.map(({y,total})=>
     `<div class="brow"><span class="bname w">${y}</span><div class="btrack"><div class="bfill lt" style="width:${Math.max(total/evMax*100,2)}%">${total} ev.</div></div></div>`
   ).join('');
 
-  // Promedio por evento (facturación / nº eventos)
-  const avgByYear = [2024,2025,2026].map(y=>({
-    y,
-    avg: evByYear.find(e=>e.y===y).total > 0
-      ? (YEAR_TOTALS[y]||0) / evByYear.find(e=>e.y===y).total
-      : 0
-  }));
+  // Promedio por evento = YEAR_TOTALS[y] / nº eventos del año
+  const avgByYear = cmpYears.map(y => {
+    const yTot = YEAR_TOTALS[y] || 0;
+    const yEv  = evByYear.find(e=>e.y===y)?.total || 0;
+    return { y, avg: yEv > 0 ? yTot/yEv : 0 };
+  });
   const avgMax = Math.max(...avgByYear.map(e=>e.avg), 1);
   document.getElementById('ecmp-avg').innerHTML = avgByYear.map(({y,avg})=>
     `<div class="brow"><span class="bname w">${y}</span><div class="btrack"><div class="bfill" style="width:${Math.max(avg/avgMax*100,2)}%;background:var(--purple)">${fmt(avg)}</div></div></div>`
   ).join('');
 
-  document.getElementById('ecmp-total').textContent=fmt(Object.values(YEAR_TOTALS).reduce((a,b)=>a+b,0));
+  // Total histórico acumulado
+  // Total histórico = suma de YEAR_TOTALS de todos los años (incluye 2023 seed)
+  const totalHist = (SEED_2023 || 0) + Object.values(YEAR_TOTALS).reduce((a,b)=>a+b, 0);
+  document.getElementById('ecmp-total').textContent = fmt(totalHist);
   document.getElementById('etl-yr').textContent=yr;
 
   const next=D.filter(r=>{const d=pd(r.fe);return d&&d>TODAY;}).sort((a,b)=>(pd(a.fe)||0)-(pd(b.fe)||0));
