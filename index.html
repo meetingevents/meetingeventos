@@ -520,6 +520,17 @@ tr:hover td{background:var(--blue-glass);}
 .wval{font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:700;}
 .wlbl{font-size:10px;opacity:.7;text-transform:uppercase;letter-spacing:.8px;margin-top:3px;font-weight:600;}
 .wdiv{width:1px;background:rgba(255,255,255,.22);height:48px;}
+.g4-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+.stat-card{background:var(--white);border-radius:var(--radius);border:1.5px solid var(--grey-2);padding:18px 18px 16px;box-shadow:var(--shadow-sm);}
+.stat-card .sc-label{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--grey-text);font-weight:800;margin-bottom:8px;}
+.stat-card .sc-amount{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:800;color:var(--blue);line-height:1;}
+.stat-card .sc-events{font-size:11px;color:var(--grey-text);font-weight:600;margin-top:3px;}
+.stat-card .sc-cmp{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:800;padding:2px 7px;border-radius:10px;margin-top:8px;}
+.stat-card .sc-cmp.up{background:var(--green-bg);color:var(--green);}
+.stat-card .sc-cmp.dn{background:var(--red-bg);color:var(--red);}
+.stat-card .sc-cmp.na{background:var(--grey-1);color:var(--grey-text);}
+@media(max-width:900px){.g4-stats{grid-template-columns:1fr 1fr;}}
+@media(max-width:560px){.g4-stats{grid-template-columns:1fr;}}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:0;}
 .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px;}
 .mb{margin-bottom:16px;}
@@ -600,6 +611,7 @@ tr:hover td{background:var(--blue-glass);}
         <span class="ico">💶</span><span class="lbl">Finanzas</span>
       </button>
       <div class="sb-sub open" id="sub-finanzas">
+        <button class="sb-subitem" onclick="goPage('finanzas');goFinTab('dashboard')" id="ssb-dashboard">📊 Dashboard</button>
         <button class="sb-subitem" onclick="goPage('finanzas');goFinTab('ingresos')" id="ssb-ingresos">💰 Ingresos</button>
         <button class="sb-subitem" onclick="goPage('finanzas');goFinTab('gastos')" id="ssb-gastos">📤 Gastos</button>
         <button class="sb-subitem" onclick="goPage('finanzas');goFinTab('resultado')" id="ssb-resultado">📈 Resultado</button>
@@ -700,13 +712,17 @@ tr:hover td{background:var(--blue-glass);}
               <select id="mc1yr" onchange="renderMiniCharts()" style="font-size:11px;padding:4px 22px 4px 8px;border-radius:6px;"><option value="2026">2026</option><option value="2025">2025</option><option value="2024">2024</option><option value="">Todos</option></select>
             </div>
             <div style="padding:6px 20px 0;font-size:10px;color:var(--grey-text);font-style:italic;">⚠️ Importes aproximados — totales exactos en comparativa mensual</div>
-            <div class="cb"><div class="blist" id="mc1"></div></div>
+            <div class="cb"><div class="blist" id="mc1"></div>
+              <div id="mc1-pie" style="margin-top:10px;padding-top:12px;border-top:1px solid var(--grey-2);"></div>
+            </div>
           </div>
           <div class="card">
             <div class="ch"><div class="ct"><div class="cdot"></div>Top locales</div>
               <select id="mc2yr" onchange="renderMiniCharts()" style="font-size:11px;padding:4px 22px 4px 8px;border-radius:6px;"><option value="2026">2026</option><option value="2025">2025</option><option value="2024">2024</option><option value="">Todos</option></select>
             </div>
-            <div class="cb"><div class="blist" id="mc2"></div></div>
+            <div class="cb"><div class="blist" id="mc2"></div>
+              <div id="mc2-pie" style="margin-top:10px;padding-top:12px;border-top:1px solid var(--grey-2);"></div>
+            </div>
           </div>
           <div class="card">
             <div class="ch"><div class="ct"><div class="cdot"></div>Nº eventos por tipo</div>
@@ -737,13 +753,6 @@ tr:hover td{background:var(--blue-glass);}
           <div class="wdiv"></div>
           <div class="wi"><div class="wval" id="w4">—</div><div class="wlbl">Total histórico</div></div>
         </div>
-        <div class="kgrid">
-          <div class="kpi b"><span class="kico">€</span><div class="kl">Facturación período</div><div class="kv bl" id="vk0">—</div><div class="ks" id="vk0s"></div></div>
-          <div class="kpi g"><span class="kico">✓</span><div class="kl">Cobrado</div><div class="kv" id="vk1">—</div><div class="ks" id="vk1s"></div></div>
-          <div class="kpi o"><span class="kico">⏳</span><div class="kl">Pendiente</div><div class="kv" id="vk2">—</div><div class="ks" id="vk2s"></div></div>
-          <div class="kpi k"><span class="kico">📋</span><div class="kl">Operaciones</div><div class="kv" id="vk3">—</div><div class="ks">ventas</div></div>
-          <div class="kpi b"><span class="kico">⌀</span><div class="kl">Ticket Medio</div><div class="kv bl" id="vk4">—</div><div class="ks">por venta</div></div>
-        </div>
         <div class="fb">
           <span class="flbl">Período</span>
           <div class="ptabs" id="ptabs">
@@ -759,13 +768,87 @@ tr:hover td{background:var(--blue-glass);}
           <select id="ve" onchange="rv()"><option value="">Estado</option><option value="COBRADO">Cobrado</option><option value="PENDIENTE">Pendiente</option></select>
           <button class="btn" onclick="rstV()">↺ Reset</button>
         </div>
-        <div class="g2 mb">
-          <div class="card"><div class="ch"><div class="ct"><div class="cdot"></div>Ventas por mes (fecha venta)</div><div class="ytabs" id="yt-v"></div></div><div class="cb"><div class="blist" id="vbm"></div></div></div>
-          <div class="card"><div class="ch"><div class="ct"><div class="cdot"></div>Por día — semana actual</div></div><div class="cb"><div class="blist" id="vbw"></div></div></div>
+        <div class="kgrid">
+          <div class="kpi b"><span class="kico">€</span><div class="kl">Facturación período</div><div class="kv bl" id="vk0">—</div><div class="ks" id="vk0s"></div></div>
+          <div class="kpi k"><span class="kico">📋</span><div class="kl">Operaciones</div><div class="kv" id="vk3">—</div><div class="ks">ventas cerradas</div></div>
+          <div class="kpi b"><span class="kico">⌀</span><div class="kl">Ticket Medio</div><div class="kv bl" id="vk4">—</div><div class="ks">por venta</div></div>
+          <div class="kpi g"><span class="kico">🏆</span><div class="kl">Venta más alta</div><div class="kv" id="vk5">—</div><div class="ks" id="vk5s"></div></div>
+        </div>
+        <div class="card mb">
+          <div class="ch"><div class="ct"><div class="cdot"></div>Ventas por mes (fecha venta)</div>
+            <select id="vbm-year" onchange="vYear=+this.value;renderVMonthly();renderVEventMonth();" style="font-size:11px;padding:4px 22px 4px 8px;border-radius:6px;">
+              <option value="2026">2026</option><option value="2025">2025</option><option value="2024">2024</option>
+            </select>
+          </div>
+          <div id="vbm-summary" style="padding:10px 20px 0;font-size:11px;color:var(--blue);font-weight:600;"></div>
+          <div class="cb"><div class="blist" id="vbm"></div></div>
+        </div>
+        <div class="card mb">
+          <div class="ch"><div class="ct"><div class="cdot"></div>Por día — semana actual</div></div>
+          <div class="cb"><div class="blist" id="vbw"></div></div>
+        </div>
+        <div class="card mb">
+          <div class="ch"><div class="ct"><div class="cdot"></div>Desglose semanal</div>
+            <div style="display:flex;gap:8px;">
+              <select id="vws-month" onchange="renderVWeekStandalone()" style="font-size:11px;padding:4px 22px 4px 8px;border-radius:6px;">
+                <option value="0">Enero</option><option value="1">Febrero</option><option value="2">Marzo</option>
+                <option value="3">Abril</option><option value="4">Mayo</option><option value="5">Junio</option>
+                <option value="6">Julio</option><option value="7">Agosto</option><option value="8">Septiembre</option>
+                <option value="9">Octubre</option><option value="10">Noviembre</option><option value="11">Diciembre</option>
+              </select>
+              <select id="vws-year" onchange="renderVWeekStandalone()" style="font-size:11px;padding:4px 22px 4px 8px;border-radius:6px;">
+                <option value="2026">2026</option><option value="2025">2025</option><option value="2024">2024</option>
+              </select>
+            </div>
+          </div>
+          <div class="cb"><div class="blist" id="vbw-month"></div></div>
         </div>
         <div class="g2 mb">
           <div class="card"><div class="ch"><div class="ct"><div class="cdot"></div>Top Proveedores</div></div><div class="cb"><div class="blist" id="vbp"></div></div></div>
           <div class="card"><div class="ch"><div class="ct"><div class="cdot"></div>Por Tipo de Evento</div></div><div class="cb"><div class="blist" id="vbt"></div></div></div>
+        </div>
+        <div class="card mb">
+          <div class="ch"><div class="ct"><div class="cdot"></div>Antelación de venta</div></div>
+          <div style="padding:14px 20px;font-size:11px;color:var(--grey-text);">Días que pasan entre la <strong>fecha de venta</strong> (cierre) y la <strong>fecha del evento</strong> — cuánto tiempo de antelación reservan tus clientes</div>
+          <div class="cb"><div id="vbl"></div></div>
+        </div>
+        <div class="card mb">
+          <div class="ch"><div class="ct"><div class="cdot"></div>¿Cuándo se cerraron los eventos de cada mes?</div>
+            <select id="vem-month" onchange="renderVEventMonth()" style="font-size:11px;padding:4px 22px 4px 8px;border-radius:6px;">
+              <option value="0">Enero</option><option value="1">Febrero</option><option value="2">Marzo</option>
+              <option value="3">Abril</option><option value="4">Mayo</option><option value="5">Junio</option>
+              <option value="6">Julio</option><option value="7">Agosto</option><option value="8">Septiembre</option>
+              <option value="9">Octubre</option><option value="10">Noviembre</option><option value="11">Diciembre</option>
+            </select>
+          </div>
+          <div style="padding:10px 20px 0;font-size:11px;color:var(--grey-text);">Para los eventos cuya <strong>fecha del evento</strong> es ese mes, ¿en qué mes se cerró la venta?</div>
+          <div id="vem-summary" style="padding:6px 20px 0;font-size:11px;color:var(--blue);font-weight:600;"></div>
+          <div class="cb"><div class="blist" id="vem"></div></div>
+        </div>
+        <div class="card mb">
+          <div class="ch"><div class="ct"><div class="cdot"></div>Comparativa de ventas por mes entre años</div></div>
+          <div style="padding:10px 20px 0;font-size:11px;color:var(--grey-text);">Facturación cerrada (fecha venta) por mes, comparando los distintos años</div>
+          <div class="twrap">
+            <table>
+              <thead><tr id="vcmp-head"></tr></thead>
+              <tbody id="vcmp-body"></tbody>
+              <tfoot id="vcmp-foot"></tfoot>
+            </table>
+          </div>
+        </div>
+        <div class="card mb">
+          <div class="ch"><div class="ct"><div class="cdot"></div>⌀ Promedio de venta semanal por mes</div>
+            <select id="vavg-year" onchange="renderVWeeklyAvg()" style="font-size:11px;padding:4px 22px 4px 8px;border-radius:6px;">
+              <option value="2026">2026</option><option value="2025">2025</option><option value="2024">2024</option>
+            </select>
+          </div>
+          <div style="padding:10px 20px 0;font-size:11px;color:var(--grey-text);">Facturación total del mes ÷ nº de semanas que lo componen — para comparar meses de forma justa</div>
+          <div class="cb" id="vavg-grid" style="padding:14px 20px 18px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;"></div>
+        </div>
+        <div class="card mb">
+          <div class="ch"><div class="ct"><div class="cdot"></div>📊 Análisis de estacionalidad de ventas</div></div>
+          <div style="padding:14px 20px;font-size:11px;color:var(--grey-text);">Basado en el histórico de todos los años — ¿en qué mes se cierran más ventas habitualmente?</div>
+          <div class="cb" id="vseason-analysis" style="padding:0 20px 18px;"></div>
         </div>
         <div class="card">
           <div class="ch"><div class="ct"><div class="cdot"></div>Detalle ventas</div><span class="badge grey" id="vn">—</span></div>
@@ -782,7 +865,7 @@ tr:hover td{background:var(--blue-glass);}
           <span class="flbl">Filtrar</span>
           <select id="cy" onchange="rc()"><option value="">Año (f.evento)</option><option>2024</option><option>2025</option><option>2026</option></select>
           <select id="cm" onchange="rc()"><option value="">Mes</option><option value="1">Ene</option><option value="2">Feb</option><option value="3">Mar</option><option value="4">Abr</option><option value="5">May</option><option value="6">Jun</option><option value="7">Jul</option><option value="8">Ago</option><option value="9">Sep</option><option value="10">Oct</option><option value="11">Nov</option><option value="12">Dic</option></select>
-          <select id="ce" onchange="rc()"><option value="">Estado</option><option value="COBRADO">Cobrado</option><option value="PENDIENTE">Pendiente</option></select>
+          <select id="ce" onchange="rc()"><option value="">Estado</option><option value="COBRADO">Cobrado</option><option value="PENDIENTE">Pendiente</option><option value="FUTURO">Futuro</option></select>
           <select id="ct2" onchange="rc()"><option value="">Tipo evento</option></select>
           <select id="cs2" onchange="rc()"><option value="">Servicio</option></select>
           <button class="btn" onclick="rstC()">↺ Reset</button>
@@ -827,14 +910,68 @@ tr:hover td{background:var(--blue-glass);}
 
       <!-- Sub-tabs -->
       <div style="display:flex;gap:0;margin-bottom:20px;background:var(--white);border-radius:var(--radius);border:1px solid var(--grey-2);overflow:hidden;box-shadow:var(--shadow-sm);">
-        <button class="fin-tab on" onclick="goFinTab('ingresos')" id="ft-ingresos" style="flex:1;padding:12px;border:none;background:var(--blue);color:#fff;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;letter-spacing:.4px;text-transform:uppercase;">💰 Ingresos</button>
+        <button class="fin-tab on" onclick="goFinTab('dashboard')" id="ft-dashboard" style="flex:1;padding:12px;border:none;background:var(--blue);color:#fff;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;letter-spacing:.4px;text-transform:uppercase;">📊 Dashboard</button>
+        <button class="fin-tab" onclick="goFinTab('ingresos')" id="ft-ingresos" style="flex:1;padding:12px;border:none;background:none;color:var(--grey-text);font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;letter-spacing:.4px;text-transform:uppercase;">💰 Ingresos</button>
         <button class="fin-tab" onclick="goFinTab('gastos')" id="ft-gastos" style="flex:1;padding:12px;border:none;background:none;color:var(--grey-text);font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;letter-spacing:.4px;text-transform:uppercase;">📤 Gastos</button>
         <button class="fin-tab" onclick="goFinTab('resultado')" id="ft-resultado" style="flex:1;padding:12px;border:none;background:none;color:var(--grey-text);font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;letter-spacing:.4px;text-transform:uppercase;">📈 Resultado</button>
         <button class="fin-tab" onclick="goFinTab('liquidacion')" id="ft-liquidacion" style="flex:1;padding:12px;border:none;background:none;color:var(--grey-text);font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;letter-spacing:.4px;text-transform:uppercase;">✂️ Liquidación</button>
       </div>
 
+      <!-- DASHBOARD FINANZAS TAB -->
+      <div id="fintab-dashboard">
+        <div class="kgrid" id="fdash-kpis"></div>
+
+        <div class="g2 mb">
+          <div class="card">
+            <div class="ch"><div class="ct"><div class="cdot"></div>💰 Ingresos por mes</div>
+              <select id="fdash-year-ing" onchange="renderFinDashboard()" style="font-size:11px;padding:4px 22px 4px 8px;border-radius:6px;">
+                <option value="2026">2026</option><option value="2025">2025</option><option value="2024">2024</option>
+              </select>
+            </div>
+            <div class="cb"><div class="blist" id="fdash-ingresos-mes"></div></div>
+          </div>
+          <div class="card">
+            <div class="ch"><div class="ct"><div class="cdot"></div>📤 Gastos por mes</div></div>
+            <div style="padding:10px 20px 0;font-size:10px;color:var(--grey-text);">Gastos variables registrados + adelanto fijos, por mes</div>
+            <div class="cb"><div class="blist" id="fdash-gastos-mes"></div></div>
+          </div>
+        </div>
+
+        <div class="card mb">
+          <div class="ch"><div class="ct"><div class="cdot"></div>📈 Resultado neto por mes — tendencia anual</div></div>
+          <div class="cb"><div class="blist" id="fdash-resultado-mes"></div></div>
+        </div>
+
+        <div class="card mb">
+          <div class="ch"><div class="ct"><div class="cdot"></div>📊 Comparativa anual — Ingresos · Gastos · Resultado</div></div>
+          <div class="twrap">
+            <table>
+              <thead><tr><th>Año</th><th style="text-align:right">Ingresos</th><th style="text-align:right">Gastos*</th><th style="text-align:right">Resultado*</th><th style="text-align:right">Promedio/mes</th></tr></thead>
+              <tbody id="fdash-cmp-anual"></tbody>
+            </table>
+          </div>
+          <div style="padding:10px 20px;font-size:9px;color:var(--grey-text);">*Gastos y Resultado solo disponibles para los meses con datos registrados manualmente en el dashboard</div>
+        </div>
+
+        <div class="card mb">
+          <div class="ch"><div class="ct"><div class="cdot"></div>✂️ Liquidaciones — Laura vs Ángela</div></div>
+          <div style="padding:14px 20px 0;display:flex;gap:30px;flex-wrap:wrap;" id="fdash-liq-totales"></div>
+          <div class="cb"><div class="blist" id="fdash-liq-mes"></div></div>
+        </div>
+
+        <div class="card">
+          <div class="ch"><div class="ct"><div class="cdot"></div>⌀ Promedio de liquidación por año</div></div>
+          <div class="twrap">
+            <table>
+              <thead><tr><th>Año</th><th style="text-align:right">Laura · Total</th><th style="text-align:right">Laura · Promedio/mes</th><th style="text-align:right">Ángela · Total</th><th style="text-align:right">Ángela · Promedio/mes</th></tr></thead>
+              <tbody id="fdash-liq-promedio"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <!-- INGRESOS TAB -->
-      <div id="fintab-ingresos">
+      <div id="fintab-ingresos" style="display:none;">
         <div class="kgrid" id="fin-kpi-ingresos"></div>
         <div class="card">
           <div class="ch">
@@ -859,12 +996,88 @@ tr:hover td{background:var(--blue-glass);}
               <thead><tr>
                 <th>Código</th><th>Cliente</th><th>F.Evento</th><th>Tipo</th><th>Local</th>
                 <th>Beneficio</th><th>Cobro 1</th><th>Cobro 2</th><th>Pendiente</th>
+                <th>Cuenta Meeting</th><th>JA</th><th>Efectivo Meeting</th><th>Efectivo Total (Sobre)</th>
                 <th>Resp.</th><th>Estado</th><th>Factura</th>
               </tr></thead>
               <tbody id="fin-ing-tbody"></tbody>
+              <tfoot id="fin-ing-tfoot"></tfoot>
             </table>
           </div>
           <div style="padding:12px 20px;background:var(--grey-1);border-top:1px solid var(--grey-2);display:flex;gap:24px;flex-wrap:wrap;" id="fin-ing-footer"></div>
+        </div>
+        <div class="card" style="margin-top:14px;">
+          <div class="ch"><div class="ct"><div class="cdot"></div>📊 Desglose de cómo se ha cobrado el mes</div></div>
+          <div id="fin-desglose-cobro" style="padding:16px 20px;"></div>
+        </div>
+        <!-- CONTROL DE SOBRES (efectivo) -->
+        <div class="card" style="margin-top:14px;">
+          <div class="ch">
+            <div class="ct"><div class="cdot o"></div>💵 Control de sobres (efectivo)</div>
+            <span class="badge orange" id="sobre-count"></span>
+          </div>
+          <div style="padding:10px 20px 0;font-size:11px;color:var(--grey-text);">Marca cada importe cuando confirmes que el dinero en efectivo ya está físicamente en el sobre</div>
+          <div class="twrap">
+            <table>
+              <thead><tr>
+                <th style="width:40px"></th>
+                <th>Código</th><th>Cliente</th><th>Método</th><th>Importe</th><th>Resp.</th>
+              </tr></thead>
+              <tbody id="sobre-tbody"></tbody>
+            </table>
+          </div>
+          <div style="padding:14px 20px;background:var(--orange-bg);border-top:1px solid #f5dba8;display:flex;gap:24px;align-items:center;flex-wrap:wrap;">
+            <div>
+              <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--orange)">Total efectivo del mes</div>
+              <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;color:var(--orange)" id="sobre-total-mes">—</div>
+            </div>
+            <div>
+              <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--green)">✓ Verificado en sobre</div>
+              <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;color:var(--green)" id="sobre-total-checked">—</div>
+            </div>
+            <div>
+              <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--red)">⏳ Pendiente de cotejar</div>
+              <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;color:var(--red)" id="sobre-total-pending">—</div>
+            </div>
+          </div>
+        </div>
+        <!-- CONTROL DE INGRESOS POR TRANSFERENCIA (cuenta bancaria) -->
+        <div class="card" style="margin-top:14px;">
+          <div class="ch">
+            <div class="ct"><div class="cdot"></div>🏦 Control de ingresos por transferencia</div>
+            <span class="badge blue" id="transf-count"></span>
+          </div>
+          <div style="padding:10px 20px 0;font-size:11px;color:var(--grey-text);">Marca cada importe cuando confirmes que la transferencia o Bizum ya ha llegado a tu cuenta bancaria de Meeting</div>
+          <div class="twrap">
+            <table>
+              <thead><tr>
+                <th style="width:40px"></th>
+                <th>Código</th><th>Cliente</th><th>Método</th><th>Importe</th><th>Resp.</th>
+              </tr></thead>
+              <tbody id="transf-tbody"></tbody>
+            </table>
+          </div>
+          <div style="padding:14px 20px;background:var(--blue-pale);border-top:1px solid #b8d4f5;display:flex;gap:24px;align-items:center;flex-wrap:wrap;">
+            <div>
+              <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--blue)">Total transferencias del mes</div>
+              <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;color:var(--blue)" id="transf-total-mes">—</div>
+            </div>
+            <div>
+              <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--green)">✓ Verificado en cuenta</div>
+              <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;color:var(--green)" id="transf-total-checked">—</div>
+            </div>
+            <div>
+              <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--red)">⏳ Pendiente de cotejar</div>
+              <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;color:var(--red)" id="transf-total-pending">—</div>
+            </div>
+          </div>
+        </div>
+        <!-- CIERRE DE CAJA DEL MES -->
+        <div class="card" style="margin-top:14px;" id="cierre-caja-card">
+          <div class="ch">
+            <div class="ct"><div class="cdot"></div>🔒 Cierre de caja del mes</div>
+            <span id="cierre-estado-badge"></span>
+          </div>
+          <div style="padding:16px 20px;" id="cierre-caja-body"></div>
         </div>
         <!-- IRPF note -->
         <div id="irpf-note" style="display:none;background:var(--orange-bg);border:1px solid var(--orange);border-radius:var(--radius-sm);padding:12px 16px;font-size:11px;font-weight:600;color:var(--orange);margin-top:12px;"></div>
@@ -961,7 +1174,21 @@ tr:hover td{background:var(--blue-glass);}
           <div class="rb-grid" id="rb-grid"></div>
         </div>
         <div style="margin-top:20px;" class="card">
-          <div class="ch"><div class="ct"><div class="cdot"></div>Desglose IRPF</div></div>
+          <div class="ch">
+            <div class="ct"><div class="cdot"></div>Desglose IRPF</div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:10px;font-weight:700;color:var(--grey-text);text-transform:uppercase;letter-spacing:.5px;">Tipo retención:</span>
+              <select id="irpf-tramo" onchange="setIrpfPct(this.value)" style="font-size:11px;padding:5px 22px 5px 8px;font-weight:700;">
+                <option value="0.07">7% — Inicio actividad (1er año)</option>
+                <option value="0.15">15% — Inicio actividad (2º-3er año)</option>
+                <option value="0.20" selected>20% — Tipo general autónomos</option>
+                <option value="0.25">25%</option>
+                <option value="0.30">30%</option>
+                <option value="0.35">35% — Tramo alto</option>
+                <option value="0.47">47% — Tramo máximo</option>
+              </select>
+            </div>
+          </div>
           <div style="padding:16px 20px;" id="irpf-detalle"></div>
         </div>
       </div>
@@ -1230,8 +1457,11 @@ function mergeComisiones(rows) {
       // Solo actualizar cobros si la fila principal los tenía vacíos
       if (!map[key].c1 && r.c1) { map[key].c1 = r.c1; map[key].q1 = r.q1; map[key].m1 = r.m1; }
       if (!map[key].c2 && r.c2) { map[key].c2 = r.c2; map[key].q2 = r.q2; map[key].m2 = r.m2; }
+      if (!map[key].c3 && r.c3) { map[key].c3 = r.c3; map[key].q3 = r.q3; map[key].m3 = r.m3; }
       // Si la fila principal tiene b=0 pero esta fila tiene b>0, usar esta
       if (!map[key].b && r.b) map[key].b = r.b;
+      // Pendiente: si la principal no tiene, usar el de la fila secundaria
+      if (!map[key].pend && r.pend) map[key].pend = r.pend;
     }
   });
   return Object.values(map);
@@ -1284,28 +1514,39 @@ async function loadRealtimeData() {
       const merged = mergeComisiones(raw);
       console.log(`Agrupados en ${merged.length} eventos únicos`);
 
-      const newD = merged.map(r => ({
-        c:       r.c,
-        cl:      r.cl,
-        fe:      normFecha(r.fe),
-        fv:      normFecha(r.fv),
-        t:       normTipo(r.t, r.c),
-        p:       r.p || '',
-        s:       r.s || '',
-        resp:    r.resp || '',
-        b:       (typeof r.b === 'number' && r.b >= 0 && r.b < 20000) ? r.b : 0,
-        e:       r.e || 'FUTURO',
-        factura: r.fac || 'N',
-        q1:      normQ(r.q1),
-        c1:      r.c1 || 0,
-        m1:      r.m1 || '',
-        q2:      normQ(r.q2),
-        c2:      r.c2 || 0,
-        m2:      r.m2 || '',
-        pend:    r.pend || 0,
-        ctaMtg:  (normQ(r.q1)==='cta'?r.c1:0)+(normQ(r.q2)==='cta'?r.c2:0),
-        jaEf:    (normQ(r.q1)==='ja' ?r.c1:0)+(normQ(r.q2)==='ja' ?r.c2:0),
-      })).filter(r => r.c && r.fe);
+      const newD = merged.map(r => {
+        const q1n = normQ(r.q1), q2n = normQ(r.q2), q3n = normQ(r.q3);
+        // Cuenta Meeting (transferencia/bizum) — solo q='cta' con método distinto de Efectivo
+        const ctaMtg = (q1n==='cta' && r.m1!=='Efectivo' ? r.c1||0 : 0)
+                     + (q2n==='cta' && r.m2!=='Efectivo' ? r.c2||0 : 0)
+                     + (q3n==='cta' && r.m3!=='Efectivo' ? r.c3||0 : 0);
+        // Efectivo Meeting — q='cta' pero pagado en efectivo
+        const efMtg = (q1n==='cta' && r.m1==='Efectivo' ? r.c1||0 : 0)
+                    + (q2n==='cta' && r.m2==='Efectivo' ? r.c2||0 : 0)
+                    + (q3n==='cta' && r.m3==='Efectivo' ? r.c3||0 : 0);
+        // JA — siempre efectivo (vía Jema/Ángela)
+        const jaEf = (q1n==='ja' ? r.c1||0 : 0) + (q2n==='ja' ? r.c2||0 : 0) + (q3n==='ja' ? r.c3||0 : 0);
+
+        return {
+          c:       r.c,
+          cl:      r.cl,
+          fe:      normFecha(r.fe),
+          fv:      normFecha(r.fv),
+          t:       normTipo(r.t, r.c),
+          p:       r.p || '',
+          s:       r.s || '',
+          resp:    r.resp || '',
+          b:       (typeof r.b === 'number' && r.b >= 0 && r.b < 20000) ? r.b : 0,
+          e:       r.e || 'FUTURO',
+          factura: r.fac || 'N',
+          q1: q1n, c1: r.c1||0, m1: r.m1||'',
+          q2: q2n, c2: r.c2||0, m2: r.m2||'',
+          q3: q3n, c3: r.c3||0, m3: r.m3||'',
+          pend:    r.pend || 0,
+          ctaMtg, efMtg, jaEf,
+          sobre:   jaEf + efMtg, // Efectivo total = JA + Efectivo Meeting
+        };
+      }).filter(r => r.c && r.fe);
 
       // Umbral de seguridad: ya sabemos que hay ~300+ eventos reales en COMISIONES
       // Si el backend devuelve menos de 200, algo va mal — no reemplazar D
@@ -1840,67 +2081,95 @@ const CE = {
   "E1009":{fac:"F",q1:"cta",c1:553.01,m1:"Transferencia",q2:"",c2:0,m2:"",pend:-110.60,resp:"Laura"},
   "E1119":{fac:"N",q1:"cta",c1:50,m1:"Bizum",q2:"cta",c2:240,m2:"Efectivo",pend:0,resp:"Laura"},
   "E1111":{fac:"N",q1:"ja",c1:100,m1:"Bizum",q2:"ja",c2:75,m2:"Transferencia",pend:0,resp:"Angela"},
-  "E1139":{fac:"N",q1:"ja",c1:120,m1:"Bizum",q2:"ja",c2:25,m2:"Bizum",pend:0,resp:"Angela"},
+  "E1139":{fac:"N",q1:"ja",c1:145,m1:"Efectivo",q2:"",c2:0,m2:"",pend:0,resp:"Angela"},
   "E1062":{fac:"F",q1:"cta",c1:138.67,m1:"Transferencia",q2:"",c2:0,m2:"",pend:0,resp:"Laura"},
-  "E1151":{fac:"N",q1:"ja",c1:100,m1:"Bizum",q2:"cta",c2:72,m2:"Efectivo",pend:0,resp:"Laura"},
-  "E1094":{fac:"N",q1:"cta",c1:80,m1:"Efectivo",q2:"cta",c2:168,m2:"Efectivo",pend:0,resp:"Laura"},
-  "E1120":{fac:"N",q1:"cta",c1:80,m1:"Efectivo",q2:"cta",c2:84,m2:"Efectivo",pend:0,resp:"Laura"},
-  "E1134":{fac:"N",q1:"ja",c1:100,m1:"Bizum",q2:"cta",c2:382,m2:"",pend:0,resp:"Laura"},
-  "E1070":{fac:"N",q1:"ja",c1:120,m1:"Bizum",q2:"cta",c2:360,m2:"Efectivo",pend:0,resp:"Laura"},
-  "E1188":{fac:"N",q1:"ja",c1:100,m1:"Bizum",q2:"cta",c2:96,m2:"Efectivo",pend:0,resp:"Laura"},
-  "E1172":{fac:"N",q1:"ja",c1:121,m1:"Bizum",q2:"ja",c2:60,m2:"Transferencia",pend:0,resp:"Angela"},
-  "E1191":{fac:"N",q1:"ja",c1:120,m1:"Bizum",q2:"cta",c2:128,m2:"Efectivo",pend:0,resp:"Laura"},
+  "E1151":{fac:"N",q1:"ja",c1:100,m1:"Efectivo",q2:"cta",c2:72,m2:"Efectivo",pend:0,resp:"Laura"},
+  "E1094":{fac:"N",q1:"cta",c1:248,m1:"Efectivo",q2:"",c2:0,m2:"",pend:0,resp:"Laura"},
+  "E1120":{fac:"N",q1:"cta",c1:164,m1:"Efectivo",q2:"",c2:0,m2:"",pend:0,resp:"Laura"},
+  "E1134":{fac:"N",q1:"ja",c1:100,m1:"Efectivo",q2:"cta",c2:382,m2:"Efectivo",pend:0,resp:"Laura"},
+  "E1070":{fac:"N",q1:"ja",c1:120,m1:"Efectivo",q2:"cta",c2:360,m2:"Transferencia",pend:0,resp:"Laura"},
+  "E1188":{fac:"N",q1:"ja",c1:100,m1:"Efectivo",q2:"cta",c2:96,m2:"Efectivo",pend:0,resp:"Laura"},
+  "E1172":{fac:"N",q1:"ja",c1:181,m1:"Efectivo",q2:"",c2:0,m2:"",pend:0,resp:"Angela"},
+  "E1191":{fac:"N",q1:"ja",c1:120,m1:"Efectivo",q2:"cta",c2:128,m2:"Efectivo",pend:0,resp:"Laura"},
   "E1115":{fac:"N",q1:"cta",c1:300,m1:"Efectivo",q2:"",c2:0,m2:"",pend:0,resp:"Angela"},
-  "E1136":{fac:"N",q1:"ja",c1:100,m1:"Bizum",q2:"cta",c2:60,m2:"Efectivo",pend:0,resp:"Laura"},
-  "E1186":{fac:"N",q1:"cta",c1:100,m1:"Efectivo",q2:"cta",c2:103,m2:"Efectivo",pend:0,resp:"Laura"},
-  "E1227":{fac:"N",q1:"ja",c1:175,m1:"Bizum",q2:"ja",c2:175,m2:"Bizum",pend:0,resp:"Laura"},
-  "E1208":{fac:"F",q1:"cta",c1:543.41,m1:"Transferencia",q2:"cta",c2:560.9,m2:"Transferencia",pend:0,resp:"Angela"},
-  "E1268":{fac:"N",q1:"ja",c1:120,m1:"Bizum",q2:"cta",c2:138,m2:"Efectivo",pend:0,resp:"Laura"},
-  "E1251":{fac:"N",q1:"cta",c1:120,m1:"Efectivo",q2:"ja",c2:30,m2:"",pend:0,resp:"Angela"},
-  "E1203":{fac:"F",q1:"cta",c1:42,m1:"Transferencia",q2:"",c2:0,m2:"",pend:0,resp:"Laura"},
-  "E1102":{fac:"N",q1:"cta",c1:80,m1:"Efectivo",q2:"cta",c2:160,m2:"Efectivo",pend:0,resp:"Angela"},
+  "E1136":{fac:"N",q1:"ja",c1:100,m1:"Efectivo",q2:"cta",c2:60,m2:"Efectivo",pend:0,resp:"Laura"},
+  "E1186":{fac:"N",q1:"cta",c1:203,m1:"Efectivo",q2:"",c2:0,m2:"",pend:0,resp:"Laura"},
+  "E1227":{fac:"N",q1:"ja",c1:350,m1:"Efectivo",q2:"",c2:0,m2:"",pend:0,resp:"Laura"},
+  "E1208":{fac:"F",q1:"cta",c1:1104.31,m1:"Transferencia",q2:"",c2:0,m2:"",pend:0,resp:"Angela"},
+  "E1268":{fac:"N",q1:"ja",c1:120,m1:"Efectivo",q2:"cta",c2:138,m2:"Efectivo",pend:0,resp:"Laura"},
+  "E1251":{fac:"N",q1:"ja",c1:30,m1:"Efectivo",q2:"cta",c2:120,m2:"Efectivo",pend:0,resp:"Angela"},
+  "E1203":{fac:"F",q1:"ja",c1:75,m1:"Efectivo",q2:"cta",c2:42,m2:"Transferencia",pend:0,resp:"Laura"},
+  "E1102":{fac:"N",q1:"cta",c1:240,m1:"Efectivo",q2:"",c2:0,m2:"",pend:0,resp:"Angela"},
   "E1175":{fac:"N",q1:"ja",c1:0,m1:"Transferencia",q2:"",c2:0,m2:"",pend:0,resp:"Angela"},
-  "E1236":{fac:"N",q1:"ja",c1:100,m1:"Efectivo",q2:"cta",c2:111,m2:"",pend:0,resp:"Angela"},
-  "E1289":{fac:"N",q1:"ja",c1:150,m1:"Transferencia",q2:"ja",c2:46,m2:"Bizum",pend:0,resp:"Laura"},
-  "E1271":{fac:"N",q1:"ja",c1:270,m1:"Transferencia",q2:"cta",c2:500,m2:"Transferencia",pend:0,resp:"Laura"},
-  "E1308":{fac:"N",q1:"ja",c1:100,m1:"Bizum",q2:"cta",c2:55,m2:"Efectivo",pend:0,resp:"Laura"},
-  "E1299":{fac:"N",q1:"ja",c1:100,m1:"Bizum",q2:"ja",c2:41,m2:"Bizum",pend:0,resp:"Angela"},
-  "E1335":{fac:"N",q1:"ja",c1:33,m1:"Bizum",q2:"",c2:0,m2:"",pend:0,resp:"Laura"},
-  "E1267":{fac:"N",q1:"cta",c1:80,m1:"Efectivo",q2:"ja",c2:86,m2:"Transferencia",pend:0,resp:"Angela"},
-  "E1295":{fac:"N",q1:"ja",c1:100,m1:"Bizum",q2:"cta",c2:63,m2:"Bizum",pend:0,resp:"Angela"},
-  "E1313":{fac:"F",q1:"cta",c1:499,m1:"Transferencia",q2:"cta",c2:430,m2:"Transferencia",pend:0,resp:"Angela"},
-  "E1340":{fac:"N",q1:"ja",c1:50,m1:"Bizum",q2:"cta",c2:22,m2:"Efectivo",pend:0,resp:"Laura"},
-  "E1310":{fac:"N",q1:"ja",c1:100,m1:"Bizum",q2:"cta",c2:72,m2:"Efectivo",pend:0,resp:"Angela"},
-  "E1361":{fac:"N",q1:"ja",c1:100,m1:"Transferencia",q2:"cta",c2:63,m2:"Efectivo",pend:0,resp:"Laura"},
+  "E1236":{fac:"N",q1:"ja",c1:100,m1:"Efectivo",q2:"cta",c2:111,m2:"Efectivo",pend:0,resp:"Angela"},
+  "E1289":{fac:"N",q1:"ja",c1:196,m1:"Efectivo",q2:"",c2:0,m2:"",pend:0,resp:"Laura"},
+  "E1271":{fac:"N",q1:"ja",c1:270,m1:"Efectivo",q2:"",c2:0,m2:"",pend:0,resp:"Laura"},
+  "E1308":{fac:"N",q1:"ja",c1:100,m1:"Efectivo",q2:"cta",c2:55,m2:"Efectivo",pend:0,resp:"Laura"},
+  "E1299":{fac:"N",q1:"ja",c1:141,m1:"Efectivo",q2:"",c2:0,m2:"",pend:0,resp:"Angela"},
+  "E1335":{fac:"N",q1:"ja",c1:33,m1:"Efectivo",q2:"",c2:0,m2:"",pend:0,resp:"Laura"},
+  "E1267":{fac:"N",q1:"ja",c1:86,m1:"Efectivo",q2:"cta",c2:80,m2:"Efectivo",pend:0,resp:"Angela"},
+  "E1295":{fac:"N",q1:"ja",c1:100,m1:"Efectivo",q2:"cta",c2:63,m2:"Transferencia",pend:0,resp:"Angela"},
+  "E1313":{fac:"F",q1:"cta",c1:611,m1:"Transferencia",q2:"",c2:0,m2:"",pend:0,resp:"Angela"},
+  "E1340":{fac:"N",q1:"ja",c1:72,m1:"Efectivo",q2:"",c2:0,m2:"",pend:0,resp:"Laura"},
+  "E1310":{fac:"N",q1:"ja",c1:100,m1:"Efectivo",q2:"cta",c2:72,m2:"Efectivo",pend:0,resp:"Angela"},
+  "E1361":{fac:"N",q1:"ja",c1:100,m1:"Efectivo",q2:"cta",c2:63,m2:"Efectivo",pend:0,resp:"Laura"},
   "E1367":{fac:"N",q1:"ja",c1:150,m1:"Bizum",q2:"cta",c2:148,m2:"Efectivo",pend:0,resp:"Angela"},
-  "E1415":{fac:"N",q1:"ja",c1:100,m1:"Bizum",q2:"cta",c2:75,m2:"Efectivo",pend:0,resp:"Laura"},
-  "E1379":{fac:"N",q1:"cta",c1:100,m1:"Bizum",q2:"",c2:0,m2:"",pend:0,resp:"Angela"},
+  "E1415":{fac:"N",q1:"ja",c1:100,m1:"Efectivo",q2:"cta",c2:75,m2:"Efectivo",pend:0,resp:"Laura"},
+  "E1379":{fac:"N",q1:"cta",c1:100,m1:"Transferencia",q2:"",c2:0,m2:"",pend:0,resp:"Angela"},
   "E1045":{fac:"N",q1:"ja",c1:100,m1:"Bizum",q2:"cta",c2:81,m2:"Bizum",pend:0,resp:"Laura"},
-  "E1408":{fac:"N",q1:"ja",c1:100,m1:"Bizum",q2:"cta",c2:60,m2:"Efectivo",pend:0,resp:"Angela"},
+  "E1408":{fac:"N",q1:"ja",c1:100,m1:"Efectivo",q2:"cta",c2:60,m2:"Efectivo",pend:0,resp:"Angela"},
   "E1203-":{fac:"N",q1:"ja",c1:75,m1:"Bizum",q2:"",c2:0,m2:"",pend:0,resp:"Laura"},
-  "E1258":{fac:"N",q1:"ja",c1:100,m1:"Bizum",q2:"cta",c2:105,m2:"Efectivo",pend:0,resp:"Angela"},
-  "E1330":{fac:"N",q1:"ja",c1:100,m1:"Transferencia",q2:"cta",c2:26,m2:"Efectivo",pend:0,resp:"Laura"},
-  "E1426":{fac:"N",q1:"ja",c1:100,m1:"Bizum",q2:"cta",c2:126,m2:"Efectivo",pend:0,resp:"Angela"},
-  "E1733":{fac:"F",q1:"cta",c1:1020,m1:"Transferencia",q2:"",c2:0,m2:"",pend:0,resp:"Laura"},
-  "E575":{fac:"F",q1:"prov",c1:500,m1:"Transferencia",q2:"",c2:0,m2:"",pend:1660,resp:"Laura"},
-  "E1949":{fac:"N",q1:"ja",c1:100,m1:"Efectivo",q2:"",c2:0,m2:"",pend:0,resp:"Angela"},
-  "E2187":{fac:"N",q1:"cta",c1:248,m1:"Bizum",q2:"ja",c2:100,m2:"Bizum",pend:0,resp:"Angela"},
-  "E2103":{fac:"N",q1:"cta",c1:152,m1:"Transferencia",q2:"ja",c2:121,m2:"Efectivo",pend:0,resp:"Laura"},
-  "E2254":{fac:"N",q1:"ja",c1:150,m1:"Transferencia",q2:"",c2:0,m2:"",pend:0,resp:"Laura"},
-  "E2184":{fac:"N",q1:"ja",c1:100,m1:"Bizum",q2:"cta",c2:78,m2:"Efectivo",pend:0,resp:"Angela"},
-  "E2208":{fac:"N",q1:"ja",c1:100,m1:"Bizum",q2:"cta",c2:132,m2:"Transferencia",pend:0,resp:"Laura"},
-  "E2004":{fac:"N",q1:"ja",c1:100,m1:"Bizum",q2:"cta",c2:84,m2:"Efectivo",pend:0,resp:"Angela"},
+  "E1258":{fac:"N",q1:"ja",c1:100,m1:"Efectivo",q2:"cta",c2:105,m2:"Efectivo",pend:0,resp:"Angela"},
+  "E1330":{fac:"N",q1:"ja",c1:100,m1:"Efectivo",q2:"cta",c2:26,m2:"Efectivo",pend:0,resp:"Laura"},
+  "E1426":{fac:"N",q1:"ja",c1:100,m1:"Efectivo",q2:"cta",c2:126,m2:"Efectivo",pend:0,resp:"Angela"},
+  "E1733":{fac:"F",q1:"cta",c1:165,m1:"Transferencia",q2:"",c2:0,m2:"",pend:0,resp:"Laura"},
+  "E575":{fac:"F",q1:"cta",c1:180,m1:"Transferencia",q2:"",c2:0,m2:"",pend:0,resp:"Laura"},
+  "E1949":{fac:"N",q1:"ja",c1:100,m1:"Efectivo",q2:"cta",c2:135,m2:"Efectivo",pend:0,resp:"Angela"},
+  "E2187":{fac:"N",q1:"ja",c1:100,m1:"Efectivo",q2:"cta",c2:248,m2:"Transferencia",pend:0,resp:"Angela"},
+  "E2103":{fac:"N",q1:"ja",c1:121,m1:"Efectivo",q2:"cta",c2:152,m2:"Transferencia",pend:0,resp:"Laura"},
+  "E2254":{fac:"N",q1:"ja",c1:150,m1:"Efectivo",q2:"",c2:0,m2:"",pend:0,resp:"Laura"},
+  "E2184":{fac:"N",q1:"ja",c1:100,m1:"Efectivo",q2:"cta",c2:78,m2:"Efectivo",pend:0,resp:"Angela"},
+  "E2208":{fac:"N",q1:"ja",c1:100,m1:"Efectivo",q2:"cta",c2:132,m2:"Efectivo",pend:0,resp:"Laura"},
+  "E2004":{fac:"N",q1:"ja",c1:100,m1:"Efectivo",q2:"cta",c2:84,m2:"Efectivo",pend:0,resp:"Angela"},
   "E3086":{fac:"F",q1:"cta",c1:4255.25,m1:"Transferencia",q2:"",c2:0,m2:"",pend:0,resp:"Angela"},
   "E3849":{fac:"N",q1:"cta",c1:500,m1:"Transferencia",q2:"",c2:0,m2:"",pend:0,resp:"Laura"},
   "E3964":{fac:"N",q1:"cta",c1:350,m1:"Transferencia",q2:"",c2:0,m2:"",pend:0,resp:"Laura"},
   "E2727-E2859":{fac:"F",q1:"cta",c1:6473.86,m1:"Transferencia",q2:"",c2:0,m2:"",pend:0,resp:"Laura"},
+  "E2220":{fac:"N",q1:"cta",c1:58.18,m1:"Transferencia",q2:"",c2:0,m2:"",pend:0,resp:"Laura"},
+  "E1025-":{fac:"N",q1:"ja",c1:150,m1:"Efectivo",q2:"cta",c2:116,m2:"Efectivo",pend:0,resp:"Laura"},
+  "E1460":{fac:"N",q1:"cta",c1:135,m1:"Efectivo",q2:"",c2:0,m2:"",pend:0,resp:"Laura"},
+  "E1406":{fac:"N",q1:"ja",c1:100,m1:"Efectivo",q2:"",c2:0,m2:"",pend:0,resp:"Laura"},
+  "E1550":{fac:"N",q1:"ja",c1:165,m1:"Efectivo",q2:"",c2:0,m2:"",pend:0,resp:"Laura"},
+  "E1559":{fac:"N",q1:"ja",c1:159,m1:"Efectivo",q2:"",c2:0,m2:"",pend:0,resp:"Laura"},
+  "E1437":{fac:"N",q1:"ja",c1:80,m1:"Efectivo",q2:"cta",c2:165,m2:"Efectivo",pend:0,resp:"Laura"},
+  "E1025":{fac:"N",q1:"cta",c1:56,m1:"Efectivo",q2:"cta",c2:100,m2:"Transferencia",pend:0,resp:"Laura"},
+  "E1592":{fac:"N",q1:"cta",c1:150,m1:"Transferencia",q2:"",c2:0,m2:"",pend:0,resp:"Laura"},
+  "E1536":{fac:"N",q1:"cta",c1:50.9,m1:"Transferencia",q2:"",c2:0,m2:"",pend:0,resp:"Laura"},
+  "E1647":{fac:"N",q1:"ja",c1:100,m1:"Efectivo",q2:"cta",c2:87,m2:"Transferencia",pend:0,resp:"Laura"},
+  "E1543":{fac:"N",q1:"cta",c1:187.4,m1:"Efectivo",q2:"",c2:0,m2:"",pend:0,resp:"Laura"},
+  "E1570":{fac:"N",q1:"ja",c1:100,m1:"Efectivo",q2:"cta",c2:150,m2:"Efectivo",pend:0,resp:"Laura"},
+  "E1622":{fac:"N",q1:"ja",c1:66,m1:"Efectivo",q2:"cta",c2:110,m2:"Efectivo",pend:0,resp:"Laura"},
+  "E1451":{fac:"N",q1:"ja",c1:100,m1:"Efectivo",q2:"cta",c2:86,m2:"Efectivo",pend:0,resp:"Laura"},
+  "E1572":{fac:"N",q1:"ja",c1:218,m1:"Efectivo",q2:"cta",c2:31,m2:"Efectivo",pend:0,resp:"Laura"},
+  "E1685":{fac:"N",q1:"cta",c1:200,m1:"Transferencia",q2:"",c2:0,m2:"",pend:0,resp:"Laura"},
+  "E1217":{fac:"N",q1:"ja",c1:193,m1:"Efectivo",q2:"cta",c2:150,m2:"Transferencia",pend:0,resp:"Laura"},
+  "E1029":{fac:"N",q1:"cta",c1:65,m1:"Efectivo",q2:"cta",c2:100,m2:"Transferencia",pend:0,resp:"Laura"},
+  "E1455":{fac:"N",q1:"ja",c1:150,m1:"Efectivo",q2:"cta",c2:325,m2:"Efectivo",pend:0,resp:"Laura"},
+  "E1639":{fac:"N",q1:"ja",c1:274,m1:"Efectivo",q2:"",c2:0,m2:"",pend:0,resp:"Laura"},
+  "E1696":{fac:"N",q1:"ja",c1:100,m1:"Efectivo",q2:"cta",c2:60,m2:"Efectivo",pend:0,resp:"Laura"},
+  "E1344":{fac:"N",q1:"ja",c1:100,m1:"Efectivo",q2:"cta",c2:112,m2:"Efectivo",pend:0,resp:"Laura"},
+  "E1452":{fac:"N",q1:"cta",c1:55,m1:"Transferencia",q2:"",c2:0,m2:"",pend:0,resp:"Laura"},
+  "E1468":{fac:"N",q1:"ja",c1:240,m1:"Efectivo",q2:"cta",c2:440,m2:"Efectivo",pend:0,resp:"Laura"},
+  "E1570-2":{fac:"N",q1:"ja",c1:22,m1:"Efectivo",q2:"cta",c2:115.45,m2:"Transferencia",pend:0,resp:"Laura"},
 };
 
 // Apply enrichment to D array
 D.forEach(d => {
   const en = CE[d.c] || {};
   d.factura = en.fac || (d.e==='COBRADO'?'N':'N');
-  d.resp = en.resp || (d.c.startsWith('G')?'Laura':d.c);
+  // Prioridad: 1) resp ya declarado en el evento, 2) resp del enriquecimiento CE, 3) Laura por defecto
+  // Nunca debe quedar el código del evento como responsable
+  d.resp = d.resp || en.resp || 'Laura';
   d.q1 = en.q1 || '';
   d.c1 = en.c1 || 0;
   d.m1 = en.m1 || '';
@@ -1941,7 +2210,7 @@ function getYear(fe){const d=parseDate(fe);return d?d.getFullYear():-1;}
 // NAVIGATION
 // ══════════════════════════════════════════════
 let curPage='dashboard';
-let curFinTab='ingresos';
+let curFinTab='dashboard';
 let sidebarCollapsed=false;
 
 function goPage(p){
@@ -1964,7 +2233,7 @@ function toggleSub(id){
 
 function goFinTab(t){
   curFinTab=t;
-  ['ingresos','gastos','resultado','liquidacion'].forEach(tab=>{
+  ['dashboard','ingresos','gastos','resultado','liquidacion'].forEach(tab=>{
     const el=document.getElementById('fintab-'+tab);
     const btn=document.getElementById('ft-'+tab);
     const sbtn=document.getElementById('ssb-'+tab);
@@ -1975,8 +2244,9 @@ function goFinTab(t){
     }
     if(sbtn){sbtn.classList.toggle('on',tab===t);}
   });
+  if(t==='dashboard') renderFinDashboard();
   if(t==='ingresos') renderIngresosTable();
-  if(t==='gastos'){ renderAdelanto(); checkGastosGuardados(); }
+  if(t==='gastos'){ renderAdelanto(); autoLoadGastosMes(); }
   if(t==='resultado') renderResultado();
   if(t==='liquidacion') renderLiquidacion();
 }
@@ -2095,44 +2365,416 @@ function setFinMonth(m){
   finMonth=m;
   document.querySelectorAll('.fmb').forEach((b,i)=>b.classList.toggle('on',i===m));
   goFinTab(curFinTab);
-  if(curFinTab==='gastos') checkGastosGuardados();
+  if(curFinTab==='gastos') autoLoadGastosMes();
+}
+
+// Carga automáticamente los gastos guardados del mes al entrar, sin pulsar botón
+async function autoLoadGastosMes(){
+  const key=gastosMesKey();
+  const cached=LS.get(`gastos_${key}`);
+  if(cached?.length){
+    GASTOS_DATA = cached.map((g,i) => ({...g, id: g.id??i}));
+    mostrarGastosCargados(gastosMesLabel(), 'este dispositivo');
+    return;
+  }
+  if(BACKEND_URL){
+    try{
+      const result = await api('loadGastos', {mesKey: key});
+      if(result?.rows?.length){
+        GASTOS_DATA = result.rows.map((r,i) => ({
+          id: i, fecha: r.fecha, concepto: r.concepto,
+          total: parseFloat(r.total)||0,
+          selected: r.selected===1||r.selected==='1'||r.selected===true,
+          esProv: r.esProv===1||r.esProv==='1'||r.esProv===true,
+        }));
+        LS.set(`gastos_${key}`, GASTOS_DATA);
+        mostrarGastosCargados(gastosMesLabel(), 'Sheets');
+        return;
+      }
+    }catch(e){ console.warn('autoLoadGastosMes:', e); }
+  }
+  // No hay datos guardados para este mes — mostrar zona de subida vacía
+  GASTOS_DATA=[];
+  document.getElementById('upload-zone-wrapper').style.display='block';
+  document.getElementById('gastos-table-wrap').style.display='none';
+  document.getElementById('fin-kpi-gastos').innerHTML='';
+  setGastosDriveStatus('','var(--grey-text)');
+  const btnGuardar=document.getElementById('btn-guardar-drive');
+  if(btnGuardar) btnGuardar.style.display='none';
+  const btnCargar=document.getElementById('btn-cargar-drive');
+  if(btnCargar) btnCargar.style.display='none';
 }
 
 function getFinData(){
   return D.filter(d=>getYear(d.fe)===finYear&&getMonth(d.fe)===finMonth);
 }
 
-// ── INGRESOS TAB
+// ── Estado del sistema SOBRE (efectivo cotejado físicamente) ──
+let SOBRES = LS.get('sobres') || {};
+function sobreKey(codigo, concepto){ return `${codigo}|${concepto}`; }
+function toggleSobre(codigo, concepto, checked){
+  if(isMesCerrado()){ alert('Este mes está cerrado. Reábrelo primero para poder editar los sobres.'); renderSobreTable(); return; }
+  const key = sobreKey(codigo, concepto);
+  SOBRES[key] = checked;
+  LS.set('sobres', SOBRES);
+  api('saveSobre', { items: [{codigo, concepto, checked}] });
+  renderIngresosTable();
+  renderSobreTable();
+}
+
+// ── TABLA DEDICADA: CONTROL DE SOBRES (efectivo) ──
+// Reúne todos los cobros en efectivo del mes (JA o método "Efectivo")
+// en una tabla aparte, independiente de los filtros de Ingresos.
+// ── DESGLOSE DE CÓMO SE HA COBRADO EL MES ──
+// 3 categorías de cobro real: Efectivo JA, Efectivo Meeting, Cuenta bancaria
+// Pendiente se calcula por diferencia: Ingreso total del mes − (efectivo + cuenta bancaria)
+function renderDesgloseCobro(){
+  const el=document.getElementById('fin-desglose-cobro');
+  if(!el) return;
+  const data=getFinData();
+
+  let efectivoJA=0, efectivoMeeting=0, cuentaBancaria=0;
+
+  data.forEach(d=>{
+    [[d.q1,d.c1,d.m1],[d.q2,d.c2,d.m2],[d.q3,d.c3,d.m3]].forEach(([q,c,m])=>{
+      if(!q||!c) return;
+      if(q==='ja'){
+        // Todo lo que pasa por JA termina en efectivo, sin importar el método anotado
+        efectivoJA += c;
+      } else if(q==='cta'){
+        if(m==='Efectivo'){
+          efectivoMeeting += c;
+        } else {
+          // Transferencia o Bizum → va a la cuenta bancaria
+          cuentaBancaria += c;
+        }
+      }
+    });
+  });
+
+  const totalEfectivo = efectivoJA + efectivoMeeting;
+  const totalCobrado = totalEfectivo + cuentaBancaria;
+  // Ingreso total del mes según el Sheets (la cifra verificada, no la suma del array)
+  const ingresoTotalMes = MONTHLY_TOTALS[finYear]?.[finMonth] || 0;
+  const pendiente = Math.max(0, ingresoTotalMes - totalCobrado);
+
+  el.innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:18px;">
+      <div style="background:var(--purple-bg);border-radius:10px;padding:14px 16px;border:1.5px solid #d4c5f9;">
+        <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--purple);margin-bottom:6px;">💵 Efectivo · JA (sobre)</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:800;color:var(--purple);">${fmt(efectivoJA)}</div>
+      </div>
+      <div style="background:#fdf0fa;border-radius:10px;padding:14px 16px;border:1.5px solid #f3c9ea;">
+        <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#c026d3;margin-bottom:6px;">💵 Efectivo · Meeting</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:800;color:#c026d3;">${fmt(efectivoMeeting)}</div>
+      </div>
+      <div style="background:var(--blue-pale);border-radius:10px;padding:14px 16px;border:1.5px solid #b8d4f5;">
+        <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--blue);margin-bottom:6px;">🏦 Cuenta bancaria</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:800;color:var(--blue);">${fmt(cuentaBancaria)}</div>
+        <div style="font-size:9px;color:var(--grey-text);margin-top:2px;">Transferencia / Bizum Meeting (L)</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;padding:18px;background:var(--grey-1);border-radius:12px;">
+      <div>
+        <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--purple);margin-bottom:5px;">Total efectivo</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:30px;font-weight:800;color:var(--purple);line-height:1;">${fmt(totalEfectivo)}</div>
+        <div style="font-size:9px;color:var(--grey-text);margin-top:3px;">JA ${fmt(efectivoJA)} + Meeting ${fmt(efectivoMeeting)}</div>
+      </div>
+      <div>
+        <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--blue);margin-bottom:5px;">Total cuenta bancaria</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:30px;font-weight:800;color:var(--blue);line-height:1;">${fmt(cuentaBancaria)}</div>
+      </div>
+      <div style="border-left:2px solid var(--grey-2);padding-left:14px;">
+        <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--grey-text);margin-bottom:5px;">Ingreso total del mes</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:30px;font-weight:800;color:var(--black);line-height:1;">${fmt(ingresoTotalMes)}</div>
+        <div style="font-size:9px;color:var(--grey-text);margin-top:3px;">verificado del Sheets</div>
+      </div>
+      <div style="background:var(--orange-bg);border-radius:10px;padding:10px 14px;margin:-4px;">
+        <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--orange);margin-bottom:5px;">⏳ Pendiente</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:30px;font-weight:800;color:var(--orange);line-height:1;">${fmt(pendiente)}</div>
+        <div style="font-size:9px;color:var(--orange);margin-top:3px;">Total − efectivo − cuenta</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderSobreTable(){
+  const tbody=document.getElementById('sobre-tbody');
+  if(!tbody) return; // la pestaña Ingresos no está activa todavía
+
+  const data=getFinData();
+  const items=[];
+  data.forEach(d=>{
+    if(d.c1>0 && (d.q1==='ja' || d.m1==='Efectivo')){
+      items.push({codigo:d.c, cliente:d.cl, concepto:'c1', metodo:d.m1||(d.q1==='ja'?'JA':''), importe:d.c1, resp:d.resp||'Laura'});
+    }
+    if(d.c2>0 && (d.q2==='ja' || d.m2==='Efectivo')){
+      items.push({codigo:d.c, cliente:d.cl, concepto:'c2', metodo:d.m2||(d.q2==='ja'?'JA':''), importe:d.c2, resp:d.resp||'Laura'});
+    }
+    if(d.c3>0 && (d.q3==='ja' || d.m3==='Efectivo')){
+      items.push({codigo:d.c, cliente:d.cl, concepto:'c3', metodo:d.m3||(d.q3==='ja'?'JA':''), importe:d.c3, resp:d.resp||'Laura'});
+    }
+  });
+
+  document.getElementById('sobre-count').textContent=items.length+' importes en efectivo';
+
+  if(!items.length){
+    tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--grey-text)">Sin cobros en efectivo este mes</td></tr>';
+    document.getElementById('sobre-total-mes').textContent='0,00 €';
+    document.getElementById('sobre-total-checked').textContent='0,00 €';
+    document.getElementById('sobre-total-pending').textContent='0,00 €';
+    return;
+  }
+
+  tbody.innerHTML=items.map(it=>{
+    const key=sobreKey(it.codigo, it.concepto);
+    const checked=!!SOBRES[key];
+    const locked=isMesCerrado();
+    return `<tr style="${checked?'background:rgba(0,135,90,0.04)':''}${locked?';opacity:.6':''}">
+      <td style="text-align:center">
+        <input type="checkbox" ${checked?'checked':''} ${locked?'disabled':''}
+          onchange="toggleSobre('${it.codigo}','${it.concepto}',this.checked)"
+          style="width:16px;height:16px;accent-color:var(--green);cursor:${locked?'not-allowed':'pointer'}">
+      </td>
+      <td style="font-family:'Barlow Condensed',sans-serif;font-weight:700;color:var(--blue);font-size:13px">${it.codigo}</td>
+      <td style="font-weight:600;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${it.cliente}">${it.cliente}</td>
+      <td><span class="qtag ja" style="font-size:9px">${it.metodo||'Efectivo'}</span></td>
+      <td class="cb" style="color:${checked?'var(--green)':'var(--orange)'};font-weight:700">${fmt(it.importe)}</td>
+      <td style="font-size:10px;font-weight:600;color:var(--grey-text)">${it.resp}</td>
+    </tr>`;
+  }).join('');
+
+  const totalMes=items.reduce((a,it)=>a+it.importe,0);
+  const totalChecked=items.filter(it=>SOBRES[sobreKey(it.codigo,it.concepto)]).reduce((a,it)=>a+it.importe,0);
+  const totalPending=totalMes-totalChecked;
+
+  document.getElementById('sobre-total-mes').textContent=fmt(totalMes);
+  document.getElementById('sobre-total-checked').textContent=fmt(totalChecked);
+  document.getElementById('sobre-total-pending').textContent=fmt(totalPending);
+}
+
+// ── CONTROL DE INGRESOS POR TRANSFERENCIA (cuenta bancaria) ──
+// Mismo sistema que SOBRES pero para cobros que van a la cuenta Meeting (L)
+// por Transferencia o Bizum — usa la misma hoja/backend, con prefijo "tr_" en el concepto
+function toggleTransfer(codigo, concepto, checked){
+  if(isMesCerrado()){ alert('Este mes está cerrado. Reábrelo primero para poder editar las transferencias.'); renderTransferTable(); return; }
+  const key = sobreKey(codigo, 'tr_'+concepto);
+  SOBRES[key] = checked;
+  LS.set('sobres', SOBRES);
+  api('saveSobre', { items: [{codigo, concepto: 'tr_'+concepto, checked}] });
+  renderTransferTable();
+}
+
+function renderTransferTable(){
+  const tbody=document.getElementById('transf-tbody');
+  if(!tbody) return; // la pestaña Ingresos no está activa todavía
+
+  const data=getFinData();
+  const items=[];
+  data.forEach(d=>{
+    // Cuenta bancaria = quien cobra es "cta" (Meeting L) y el método NO es Efectivo
+    if(d.c1>0 && d.q1==='cta' && d.m1!=='Efectivo'){
+      items.push({codigo:d.c, cliente:d.cl, concepto:'c1', metodo:d.m1||'Transferencia', importe:d.c1, resp:d.resp||'Laura'});
+    }
+    if(d.c2>0 && d.q2==='cta' && d.m2!=='Efectivo'){
+      items.push({codigo:d.c, cliente:d.cl, concepto:'c2', metodo:d.m2||'Transferencia', importe:d.c2, resp:d.resp||'Laura'});
+    }
+    if(d.c3>0 && d.q3==='cta' && d.m3!=='Efectivo'){
+      items.push({codigo:d.c, cliente:d.cl, concepto:'c3', metodo:d.m3||'Transferencia', importe:d.c3, resp:d.resp||'Laura'});
+    }
+  });
+
+  document.getElementById('transf-count').textContent=items.length+' transferencias';
+
+  if(!items.length){
+    tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--grey-text)">Sin transferencias/Bizum este mes</td></tr>';
+    document.getElementById('transf-total-mes').textContent='0,00 €';
+    document.getElementById('transf-total-checked').textContent='0,00 €';
+    document.getElementById('transf-total-pending').textContent='0,00 €';
+    return;
+  }
+
+  tbody.innerHTML=items.map(it=>{
+    const key=sobreKey(it.codigo, 'tr_'+it.concepto);
+    const checked=!!SOBRES[key];
+    const locked=isMesCerrado();
+    return `<tr style="${checked?'background:rgba(0,135,90,0.04)':''}${locked?';opacity:.6':''}">
+      <td style="text-align:center">
+        <input type="checkbox" ${checked?'checked':''} ${locked?'disabled':''}
+          onchange="toggleTransfer('${it.codigo}','${it.concepto}',this.checked)"
+          style="width:16px;height:16px;accent-color:var(--green);cursor:${locked?'not-allowed':'pointer'}">
+      </td>
+      <td style="font-family:'Barlow Condensed',sans-serif;font-weight:700;color:var(--blue);font-size:13px">${it.codigo}</td>
+      <td style="font-weight:600;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${it.cliente}">${it.cliente}</td>
+      <td><span class="qtag cta" style="font-size:9px">${it.metodo}</span></td>
+      <td class="cb" style="color:${checked?'var(--green)':'var(--blue)'};font-weight:700">${fmt(it.importe)}</td>
+      <td style="font-size:10px;font-weight:600;color:var(--grey-text)">${it.resp}</td>
+    </tr>`;
+  }).join('');
+
+  const totalMes=items.reduce((a,it)=>a+it.importe,0);
+  const totalChecked=items.filter(it=>SOBRES[sobreKey(it.codigo,'tr_'+it.concepto)]).reduce((a,it)=>a+it.importe,0);
+  const totalPending=totalMes-totalChecked;
+
+  document.getElementById('transf-total-mes').textContent=fmt(totalMes);
+  document.getElementById('transf-total-checked').textContent=fmt(totalChecked);
+  document.getElementById('transf-total-pending').textContent=fmt(totalPending);
+}
+
+// ── CIERRE DE CAJA DEL MES ──
+// Usa el mismo sistema SOBRES con una clave especial "CIERRE|<mesKey>"
+// para no tener que tocar el backend. Estado: 'cerrado' | 'abierto' | null (sin decidir)
+function cierreCajaKey(){ return `CIERRE_${finYear}_${String(finMonth+1).padStart(2,'0')}`; }
+
+function getCierreCaja(){
+  const raw = SOBRES[cierreCajaKey()];
+  if(!raw) return null;
+  try { return typeof raw === 'string' ? JSON.parse(raw) : raw; } catch(e){ return null; }
+}
+
+function setCierreCaja(estado, motivo){
+  const key = cierreCajaKey();
+  const valor = { estado, motivo: motivo||'', fecha: new Date().toLocaleDateString('es-ES') };
+  SOBRES[key] = JSON.stringify(valor);
+  LS.set('sobres', SOBRES);
+  api('saveSobre', { items: [{codigo: key, concepto: 'cierre', checked: JSON.stringify(valor)}] });
+  renderCierreCaja();
+  renderIngresosTable(); // para bloquear/desbloquear inputs
+}
+
+function isMesCerrado(){
+  const c = getCierreCaja();
+  return c && c.estado === 'cerrado';
+}
+
+function renderCierreCaja(){
+  const badge=document.getElementById('cierre-estado-badge');
+  const body=document.getElementById('cierre-caja-body');
+  if(!body) return;
+
+  const cierre = getCierreCaja();
+  const mesLabel = `${MN[finMonth]} ${finYear}`;
+
+  // Calcular si todo está cotejado (sobres + transferencias del mes)
+  const sobrePending = parseFloat((document.getElementById('sobre-total-pending')?.textContent||'0').replace(/[^\d,-]/g,'').replace(',','.'))||0;
+  const transfPending = parseFloat((document.getElementById('transf-total-pending')?.textContent||'0').replace(/[^\d,-]/g,'').replace(',','.'))||0;
+  const todoOk = sobrePending<=0 && transfPending<=0;
+
+  if(cierre && cierre.estado==='cerrado'){
+    badge.innerHTML='<span class="badge" style="background:var(--green-bg);color:var(--green);font-weight:800">🔒 MES CERRADO</span>';
+    body.innerHTML=`
+      <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--green-bg);border-radius:10px;border:1.5px solid #86efac;">
+        <span style="font-size:28px;">✅</span>
+        <div style="flex:1">
+          <div style="font-weight:800;color:var(--green);font-size:13px;">${mesLabel} está cerrado y cuadrado</div>
+          <div style="font-size:11px;color:var(--green);opacity:.85;margin-top:2px;">Cerrado el ${cierre.fecha} · Todos los registros de este mes quedan bloqueados</div>
+        </div>
+        <button class="btn ghost" onclick="if(confirm('¿Reabrir ${mesLabel}? Esto permitirá volver a editar los registros.')) setCierreCaja('abierto')" style="font-size:11px;">
+          🔓 Reabrir mes
+        </button>
+      </div>`;
+    return;
+  }
+
+  if(cierre && cierre.estado==='abierto'){
+    badge.innerHTML='<span class="badge" style="background:var(--orange-bg);color:var(--orange);font-weight:800">🔓 MES ABIERTO</span>';
+  } else {
+    badge.innerHTML='<span class="badge grey">Sin decidir</span>';
+  }
+
+  body.innerHTML=`
+    <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;background:${todoOk?'var(--green-bg)':'var(--orange-bg)'};border-radius:10px;border:1.5px solid ${todoOk?'#86efac':'#f5dba8'};margin-bottom:14px;">
+      <span style="font-size:28px;">${todoOk?'✅':'⚠️'}</span>
+      <div>
+        <div style="font-weight:800;color:${todoOk?'var(--green)':'var(--orange)'};font-size:13px;">
+          ${todoOk?'Todo cotejado — sobres y transferencias en 0 pendiente':'Quedan importes sin cotejar'}
+        </div>
+        <div style="font-size:11px;color:${todoOk?'var(--green)':'var(--orange)'};opacity:.85;margin-top:2px;">
+          ${todoOk?'Puedes cerrar el mes con tranquilidad.':`Sobres pendientes: ${fmt(sobrePending)} · Transferencias pendientes: ${fmt(transfPending)}`}
+        </div>
+      </div>
+    </div>
+    ${cierre && cierre.estado==='abierto' && cierre.motivo ? `
+    <div style="padding:10px 14px;background:var(--grey-1);border-radius:8px;font-size:11px;color:var(--grey-text);margin-bottom:14px;">
+      <strong>Motivo de dejarlo abierto:</strong> ${cierre.motivo}
+    </div>` : ''}
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+      <button class="btn" onclick="confirmarCierreMes()" style="font-size:12px;padding:10px 20px;${!todoOk?'opacity:.5':''}" ${!todoOk?'title="Hay importes pendientes de cotejar"':''}>
+        🔒 Cerrar mes
+      </button>
+      <button class="btn ghost" onclick="dejarMesAbierto()" style="font-size:12px;padding:10px 18px;">
+        🔓 Dejar mes abierto (pendiente de algo)
+      </button>
+    </div>
+  `;
+}
+
+function confirmarCierreMes(){
+  const mesLabel = `${MN[finMonth]} ${finYear}`;
+  const sobrePending = parseFloat((document.getElementById('sobre-total-pending')?.textContent||'0').replace(/[^\d,-]/g,'').replace(',','.'))||0;
+  const transfPending = parseFloat((document.getElementById('transf-total-pending')?.textContent||'0').replace(/[^\d,-]/g,'').replace(',','.'))||0;
+  if(sobrePending>0 || transfPending>0){
+    if(!confirm(`Quedan ${fmt(sobrePending+transfPending)} sin cotejar este mes (sobres + transferencias).\n\n¿Seguro que quieres cerrar ${mesLabel} igualmente?`)) return;
+  } else {
+    if(!confirm(`¿Cerrar ${mesLabel}? Todos los registros de este mes quedarán bloqueados y no se podrán editar hasta reabrirlo.`)) return;
+  }
+  setCierreCaja('cerrado');
+}
+
+function dejarMesAbierto(){
+  const motivo=prompt('¿Por qué dejas el mes abierto? (ej: "falta cobrar señal de Mercè", "pendiente confirmar transferencia TD Synnex"...)');
+  if(motivo===null) return; // cancelado
+  setCierreCaja('abierto', motivo);
+}
+
+// ── INGRESOS TAB ──
 function renderIngresosTable(){
   const data=getFinData();
   const estado=document.getElementById('fin-estado')?.value||'';
   const factura=document.getElementById('fin-factura')?.value||'';
-  let filtered=data;
-  if(estado) filtered=filtered.filter(d=>d.e===estado);
+  let filtered=[...data].sort((a,b)=>(pd(a.fe)||0)-(pd(b.fe)||0));
+  if(estado) filtered=filtered.filter(d=>estadoReal(d)===estado);
   if(factura) filtered=filtered.filter(d=>d.factura===factura);
 
   const totalB=filtered.reduce((a,d)=>a+d.b,0);
-  const cobradoB=filtered.filter(d=>d.e==='COBRADO').reduce((a,d)=>a+d.b,0);
-  const pendienteB=filtered.filter(d=>d.e!=='COBRADO'&&d.e!=='FUTURO').reduce((a,d)=>a+d.b,0);
-  const conFactura=filtered.filter(d=>d.factura==='F').reduce((a,d)=>a+d.b,0);
-  const irpf=conFactura*0.20;
+  const cobradoB=filtered.filter(d=>estadoReal(d)==='COBRADO').reduce((a,d)=>a+d.b,0);
+  const pendienteB=filtered.filter(d=>estadoReal(d)==='PENDIENTE').reduce((a,d)=>a+(d.pend>0?d.pend:d.b),0);
+  const conFactura=filtered.filter(d=>d.factura==='F'&&estadoReal(d)!=='FUTURO').reduce((a,d)=>a+d.b,0);
+  const irpfPct=getIrpfPct();
+  const irpf=conFactura*irpfPct;
 
   document.getElementById('fin-kpi-ingresos').innerHTML=`
     <div class="kpi b"><span class="kico">💰</span><div class="kl">Total ${MN[finMonth]} ${finYear}</div><div class="kv bl">${fmt(MONTHLY_TOTALS[finYear]?.[finMonth]||0)}</div><div class="ks">Sheets verificado</div></div>
-    <div class="kpi g"><span class="kico">✓</span><div class="kl">Cobrado (array)</div><div class="kv">${fmt(cobradoB)}</div></div>
+    <div class="kpi g"><span class="kico">✓</span><div class="kl">Cobrado</div><div class="kv">${fmt(cobradoB)}</div></div>
     <div class="kpi o"><span class="kico">⏳</span><div class="kl">Pendiente</div><div class="kv">${fmt(pendienteB)}</div></div>
-    <div class="kpi r"><span class="kico">🧾</span><div class="kl">Con factura (F)</div><div class="kv" style="color:var(--red)">${fmt(conFactura)}</div><div class="ks">IRPF 20%: ${fmt(irpf)}</div></div>
+    <div class="kpi r"><span class="kico">🧾</span><div class="kl">Con factura (F)</div><div class="kv" style="color:var(--red)">${fmt(conFactura)}</div><div class="ks">IRPF ${(irpfPct*100).toFixed(0)}%: ${fmt(irpf)}</div></div>
   `;
 
   document.getElementById('fin-ing-count').textContent=filtered.length+' registros';
 
-  const metodoTag=(m)=>!m?'':m==='Bizum'?'<span style="background:#e7f1fe;color:#2563eb;border-radius:3px;padding:1px 5px;font-size:8px;font-weight:800">Bizum</span>':m==='Transferencia'?'<span style="background:#e6f4f0;color:#00875a;border-radius:3px;padding:1px 5px;font-size:8px;font-weight:800">Transf.</span>':'<span style="background:#fff3e2;color:#d97706;border-radius:3px;padding:1px 5px;font-size:8px;font-weight:800">Efect.</span>';
+  const metodoTag=(m)=>!m?'':m==='Bizum'?'<span style="background:#e7f1fe;color:#2563eb;border-radius:3px;padding:1px 5px;font-size:8px;font-weight:800">Bizum</span>':m==='Transferencia'?'<span style="background:#e6f4f0;color:#00875a;border-radius:3px;padding:1px 5px;font-size:8px;font-weight:800">Transf.</span>':m==='Bizum'?'':'<span style="background:#fff3e2;color:#d97706;border-radius:3px;padding:1px 5px;font-size:8px;font-weight:800">Efect.</span>';
 
   const rows=filtered.map(d=>{
+    const est=estadoReal(d);
     const cobros=[];
     if(d.c1>0&&d.q1) cobros.push(`<span class="qtag ${d.q1}" style="font-size:8px">${d.q1==='cta'?'CTA':d.q1==='ja'?'JA':'PROV'} ${fmt(d.c1)}</span>${metodoTag(d.m1)}`);
     if(d.c2>0&&d.q2) cobros.push(`<span class="qtag ${d.q2}" style="font-size:8px">${d.q2==='cta'?'CTA':d.q2==='ja'?'JA':'PROV'} ${fmt(d.c2)}</span>${metodoTag(d.m2)}`);
-    const pendTag=d.pend>0?`<span style="color:var(--orange);font-size:9px;font-weight:700">⏳ ${fmt(d.pend)}</span>`:'';
+    const pendCalc = est==='PENDIENTE' ? (d.pend>0?d.pend:Math.max(0,d.b-(d.c1||0)-(d.c2||0))) : 0;
+    const pendTag = pendCalc>0 ? `<span style="color:var(--orange);font-size:9px;font-weight:700">⏳ ${fmt(pendCalc)}</span>` : '—';
+
+    // ── Desglose por fila: Cuenta Meeting / JA / Efectivo Meeting / Efectivo Total (Sobre) ──
+    let rowCtaMeeting=0, rowJA=0, rowEfMeeting=0;
+    [[d.q1,d.c1,d.m1],[d.q2,d.c2,d.m2],[d.q3,d.c3,d.m3]].forEach(([q,c,m])=>{
+      if(!q||!c) return;
+      if(q==='cta'){
+        if(m==='Efectivo') rowEfMeeting+=c;
+        else rowCtaMeeting+=c;
+      } else if(q==='ja'){
+        rowJA+=c;
+      }
+    });
+    const rowEfTotal=rowJA+rowEfMeeting;
+
     return `<tr>
     <td style="font-family:'Barlow Condensed',sans-serif;font-weight:700;color:var(--blue);font-size:13px">${d.c}</td>
     <td style="font-weight:600;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${d.cl}">${d.cl}</td>
@@ -2143,21 +2785,53 @@ function renderIngresosTable(){
     <td>${cobros[0]||'—'}</td>
     <td>${cobros[1]||'—'}</td>
     <td>${pendTag}</td>
+    <td class="cb" style="color:var(--blue);font-size:11px">${rowCtaMeeting>0?fmt(rowCtaMeeting):'—'}</td>
+    <td class="cb" style="color:var(--purple);font-size:11px">${rowJA>0?fmt(rowJA):'—'}</td>
+    <td class="cb" style="color:#c026d3;font-size:11px">${rowEfMeeting>0?fmt(rowEfMeeting):'—'}</td>
+    <td class="cb" style="color:var(--orange);font-size:11px;font-weight:700">${rowEfTotal>0?fmt(rowEfTotal):'—'}</td>
     <td><span style="font-size:10px;font-weight:600;color:var(--grey-text)">${d.resp||'—'}</span></td>
-    <td><span class="stag ${d.e.toLowerCase()}">${d.e}</span></td>
+    <td><span class="stag ${est.toLowerCase()}">${est}</span></td>
     <td><span class="ftag ${d.factura.toLowerCase()}">${d.factura==='F'?'📄 F':'📝 N'}</span></td>
   </tr>`;}).join('');
-  document.getElementById('fin-ing-tbody').innerHTML=rows||'<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--grey-text)">Sin registros</td></tr>';
+  document.getElementById('fin-ing-tbody').innerHTML=rows||'<tr><td colspan="16" style="text-align:center;padding:24px;color:var(--grey-text)">Sin registros</td></tr>';
+
+  // ── FILA DE TOTALES ──
+  let totCobro1=0, totCobro2=0, totPend=0, totCtaMeeting=0, totJA=0, totEfMeeting=0;
+  filtered.forEach(d=>{
+    const est2=estadoReal(d);
+    totCobro1+=d.c1||0;
+    totCobro2+=d.c2||0;
+    totPend+=est2==='PENDIENTE'?(d.pend>0?d.pend:Math.max(0,d.b-(d.c1||0)-(d.c2||0))):0;
+    [[d.q1,d.c1,d.m1],[d.q2,d.c2,d.m2],[d.q3,d.c3,d.m3]].forEach(([q,c,m])=>{
+      if(!q||!c) return;
+      if(q==='cta'){ if(m==='Efectivo') totEfMeeting+=c; else totCtaMeeting+=c; }
+      else if(q==='ja'){ totJA+=c; }
+    });
+  });
+  const totEfTotal=totJA+totEfMeeting;
+
+  document.getElementById('fin-ing-tfoot').innerHTML=`
+    <tr style="background:var(--grey-1);border-top:2px solid var(--grey-2);font-weight:800;">
+      <td colspan="5" style="padding:10px 12px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;">TOTALES</td>
+      <td class="cb" style="color:var(--blue)">${fmt(totalB)}</td>
+      <td class="cb" style="color:var(--black);font-size:11px">${fmt(totCobro1)}</td>
+      <td class="cb" style="color:var(--black);font-size:11px">${fmt(totCobro2)}</td>
+      <td class="cb" style="color:var(--orange);font-size:11px">${fmt(totPend)}</td>
+      <td class="cb" style="color:var(--blue);font-size:11px">${fmt(totCtaMeeting)}</td>
+      <td class="cb" style="color:var(--purple);font-size:11px">${fmt(totJA)}</td>
+      <td class="cb" style="color:#c026d3;font-size:11px">${fmt(totEfMeeting)}</td>
+      <td class="cb" style="color:var(--orange);font-size:11px">${fmt(totEfTotal)}</td>
+      <td colspan="3"></td>
+    </tr>
+  `;
 
   // Footer totals
   const ctaTotal=filtered.reduce((a,d)=>a+d.ctaMtg,0);
   const jaTotal=filtered.reduce((a,d)=>a+d.jaEf,0);
-  const efTotal=filtered.reduce((a,d)=>a+d.efMtg,0);
   document.getElementById('fin-ing-footer').innerHTML=`
     <span style="font-size:10px;font-weight:700;color:var(--grey-text)">TOTALES ARRAY:</span>
     <span class="qtag cta">Cta Mtg ${fmt(ctaTotal)}</span>
-    <span class="qtag ja">JA ${fmt(jaTotal)}</span>
-    <span class="qtag ef">Ef ${fmt(efTotal)}</span>
+    <span class="qtag ja">JA (efectivo) ${fmt(jaTotal)}</span>
     <span style="font-size:10px;color:var(--grey-text)">· Total: <strong>${fmt(totalB)}</strong></span>
     <span style="margin-left:auto;font-size:9px;color:var(--grey-text)">ℹ El total exacto del mes viene del Sheets: <strong>${fmt(MONTHLY_TOTALS[finYear]?.[finMonth]||0)}</strong></span>
   `;
@@ -2166,10 +2840,15 @@ function renderIngresosTable(){
   const note=document.getElementById('irpf-note');
   if(conFactura>0){
     note.style.display='block';
-    note.innerHTML=`⚠️ <strong>IRPF a retener:</strong> Tienes ${fmt(conFactura)} con factura (F) este mes → retención 20% = <strong>${fmt(irpf)}</strong> a apartar para Hacienda.`;
+    note.innerHTML=`⚠️ <strong>IRPF a retener:</strong> Tienes ${fmt(conFactura)} con factura (F) este mes → retención ${(irpfPct*100).toFixed(0)}% = <strong>${fmt(irpf)}</strong> a apartar para Hacienda.`;
   } else {
     note.style.display='none';
   }
+
+  renderSobreTable();
+  renderTransferTable();
+  renderDesgloseCobro();
+  renderCierreCaja();
 }
 
 // ── GASTOS TAB
@@ -2294,6 +2973,7 @@ function toggleGastoRow(id, checked){
   if(g){ g.selected=checked; if(!checked) g.esProv=false; }
   updateGastosFooter();
   updateGastosKPI();
+  persistGastosActuales();
 }
 
 function toggleGastoProv(id, checked){
@@ -2301,6 +2981,7 @@ function toggleGastoProv(id, checked){
   if(g) g.esProv=checked;
   updateGastosFooter();
   updateGastosKPI();
+  persistGastosActuales();
 }
 
 function toggleAllGastos(checked){
@@ -2311,6 +2992,25 @@ function toggleAllGastos(checked){
   });
   renderGastosTable();
   updateGastosKPI();
+  persistGastosActuales();
+}
+
+// Guarda el estado actual de selección/proveedor cada vez que cambia algo,
+// tanto en LS (instantáneo) como en el backend Sheets (en segundo plano)
+let _persistGastosTimeout=null;
+function persistGastosActuales(){
+  const mesKey=gastosMesKey();
+  LS.set(`gastos_${mesKey}`, GASTOS_DATA);
+  // Debounce la llamada al backend para no saturar si el usuario marca varias casillas rápido
+  clearTimeout(_persistGastosTimeout);
+  _persistGastosTimeout=setTimeout(()=>{
+    if(BACKEND_URL){
+      api('saveGastos', {
+        mesKey,
+        rows: GASTOS_DATA.map(g => ({fecha:g.fecha, concepto:g.concepto, total:g.total, selected:g.selected?1:0, esProv:g.esProv?1:0}))
+      });
+    }
+  }, 800);
 }
 
 function renderGastosTable(){
@@ -2563,87 +3263,27 @@ async function guardarGastosDrive(){
   const label=gastosMesLabel();
   setGastosDriveStatus('💾 Guardando…','var(--orange)');
 
-  // Build CSV rows for this month
-  const header='mes,año,id,fecha,concepto,total,selected,esProv\n';
-  const rows=GASTOS_DATA.map(g=>{
-    const esc=v=>'"'+String(v||'').replace(/"/g,'""')+'"';
-    return [key,finYear,g.id,esc(g.fecha),esc(g.concepto),g.total,g.selected?1:0,g.esProv?1:0].join(',');
-  }).join('\n');
+  // Siempre guardar en LS (caché local instantánea, funciona sin backend)
+  LS.set(`gastos_${key}`, GASTOS_DATA);
+
+  if(!BACKEND_URL){
+    setGastosDriveStatus(`✓ Guardado en este dispositivo (${label}) — conecta el backend para sincronizar entre ordenadores`,'var(--orange)');
+    return;
+  }
 
   try {
-    // First read existing sheet to preserve other months
-    const readResp = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${GASTOS_SHEET_ID}/values/A:H`,
-      { headers:{ 'Content-Type':'application/json' } }
-    );
-    // We use the Anthropic API proxy approach via Drive API instead
-    // Upload as a new version using Drive API
-    const csvContent = header + rows;
-
-    // Use Drive Files update API to overwrite with all months' data
-    // First get existing data
-    let existing = [];
-    try {
-      const existResp = await fetch(
-        `https://docs.google.com/spreadsheets/d/${GASTOS_SHEET_ID}/export?format=csv`,
-        { credentials: 'include' }
-      );
-      if(existResp.ok){
-        const text = await existResp.text();
-        existing = text.split('\n').slice(1) // skip header
-          .filter(r=>r.trim()&&!r.startsWith(key)); // remove old rows for this month
-      }
-    } catch(e){}
-
-    // Combine: old months + new month rows
-    const newRows = GASTOS_DATA.map(g=>{
-      const esc=v=>'"'+String(v||'').replace(/"/g,'""')+'"';
-      return [key,finYear,g.id,esc(g.fecha),esc(g.concepto),g.total,g.selected?1:0,g.esProv?1:0].join(',');
-    });
-    const allRows = [...existing.filter(r=>r.trim()), ...newRows];
-    const fullCsv = 'mes,año,id,fecha,concepto,total,selected,esProv\n' + allRows.join('\n');
-
-    // Save via Apps Script backend
     const backendResult = await api('saveGastos', {
       mesKey: key,
       rows: GASTOS_DATA.map(g => ({fecha:g.fecha, concepto:g.concepto, total:g.total, selected:g.selected?1:0, esProv:g.esProv?1:0}))
     });
     if(backendResult) {
-      setGastosDriveStatus(`✓ Guardado en Sheets (${label})`,'var(--green)');
-      LS.set(`gastos_${key}`, GASTOS_DATA);
-      return;
-    }
-    // Fallback: local only
-    LS.set(`gastos_${key}`, GASTOS_DATA);
-    setGastosDriveStatus(`✓ Guardado local (${label}) — backend no disponible`,'var(--orange)');
-    return;
-    // Legacy Drive multipart (unused now):
-    const boundary = 'boundary_meeting_gastos';
-    const metadata = JSON.stringify({ name:'MEETING EVENTOS · Gastos Variables Dashboard', mimeType:'application/vnd.google-apps.spreadsheet' });
-    const body = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: text/csv\r\n\r\n${fullCsv}\r\n--${boundary}--`;
-
-    const resp = await fetch(
-      `https://www.googleapis.com/upload/drive/v3/files/${GASTOS_SHEET_ID}?uploadType=multipart`,
-      {
-        method:'PATCH',
-        headers:{ 'Content-Type':`multipart/related; boundary=${boundary}` },
-        body: body,
-        credentials:'include'
-      }
-    );
-
-    if(resp.ok){
-      setGastosDriveStatus(`✓ Guardado ${label}`,'var(--green)');
-      // Also save to sessionStorage as fast cache
-      LS.set(`gastos_${key}`, GASTOS_DATA);
+      setGastosDriveStatus(`✓ Guardado en Sheets (${label}) — disponible desde cualquier ordenador`,'var(--green)');
     } else {
-      throw new Error(`HTTP ${resp.status}`);
+      setGastosDriveStatus(`✓ Guardado local (${label}) — el backend no respondió`,'var(--orange)');
     }
   } catch(err){
-    // Fallback: save only to sessionStorage
-    LS.set(`gastos_${key}`, GASTOS_DATA);
-    setGastosDriveStatus(`✓ Guardado localmente (${label})`, 'var(--orange)');
-    console.warn('Drive save failed, using sessionStorage:', err);
+    setGastosDriveStatus(`✓ Guardado local (${label}) — error backend: ${err.message}`, 'var(--orange)');
+    console.warn('saveGastos backend failed:', err);
   }
 }
 
@@ -2652,24 +3292,19 @@ async function cargarGastosDrive(){
   const label=gastosMesLabel();
   setGastosDriveStatus('☁️ Cargando…','var(--blue)');
 
-  // Try sessionStorage first (fastest)
+  // 1. Caché local (LS ya devuelve el objeto parseado, no JSON.parse de nuevo)
   const cached=LS.get(`gastos_${key}`);
-  if(cached){
-    try{
-      GASTOS_DATA=JSON.parse(cached);
-      mostrarGastosCargados(label, 'caché');
-      return;
-    }catch(e){}
-  }
-
-  // Try LS cache first
-  const lsCached = LS.get(`gastos_${key}`);
-  if(lsCached?.length) {
-    GASTOS_DATA = lsCached.map((g,i) => ({...g, id: g.id||i}));
-    mostrarGastosCargados(label, 'caché local');
+  if(cached?.length){
+    GASTOS_DATA = cached.map((g,i) => ({...g, id: g.id??i}));
+    mostrarGastosCargados(label, 'este dispositivo');
     return;
   }
-  // Try backend
+
+  // 2. Backend (Sheets) — para cuando se abre desde otro ordenador
+  if(!BACKEND_URL){
+    setGastosDriveStatus(`Sin datos guardados para ${label} en este dispositivo`,'var(--grey-text)');
+    return;
+  }
   try{
     const result = await api('loadGastos', {mesKey: key});
     if(result?.rows?.length) {
@@ -2720,49 +3355,220 @@ async function checkGastosGuardados(){
   const btnGuardar=document.getElementById('btn-guardar-drive');
   if(!btnCargar) return;
 
-  // Check sessionStorage
+  // 1. Comprobar caché local (LS) — instantáneo
   const cached=LS.get(`gastos_${key}`);
-  if(cached){
+  if(cached && cached.length){
     btnCargar.style.display='';
     btnCargar.innerHTML=`☁️ Cargar ${label}`;
-    setGastosDriveStatus(`Datos guardados disponibles para ${label}`,'var(--blue)');
+    setGastosDriveStatus(`✓ Datos guardados en este dispositivo (${label})`,'var(--blue)');
     return;
   }
 
-  // Check Drive (background check via CSV export)
+  // 2. Si no hay caché local, comprobar el backend (para cuando abres desde otro ordenador)
+  if(!BACKEND_URL){
+    btnCargar.style.display='none';
+    setGastosDriveStatus('Sin backend conectado — los gastos solo se guardan en este dispositivo','var(--orange)');
+    return;
+  }
+
   try{
-    const resp=await fetch(
-      `https://docs.google.com/spreadsheets/d/${GASTOS_SHEET_ID}/export?format=csv`,
-      { credentials:'include' }
-    );
-    if(resp.ok){
-      const text=await resp.text();
-      const hasData=text.split('\n').slice(1).some(l=>l.startsWith(key+','));
-      if(hasData){
-        btnCargar.style.display='';
-        btnCargar.innerHTML=`☁️ Cargar ${label}`;
-        setGastosDriveStatus(`✓ Datos de ${label} guardados en Drive`,'var(--green)');
-      } else {
-        btnCargar.style.display='none';
-        setGastosDriveStatus('','var(--grey-text)');
-      }
+    const result=await api('loadGastos', {mesKey: key});
+    if(result?.rows?.length){
+      btnCargar.style.display='';
+      btnCargar.innerHTML=`☁️ Cargar ${label}`;
+      setGastosDriveStatus(`✓ Datos de ${label} guardados en Sheets (${result.rows.length} líneas)`,'var(--green)');
+    } else {
+      btnCargar.style.display='none';
+      setGastosDriveStatus(`Sin gastos guardados para ${label} todavía`,'var(--grey-text)');
     }
   }catch(e){
     btnCargar.style.display='none';
+    setGastosDriveStatus('Error comprobando backend: '+e.message,'var(--red)');
   }
 }
 // ──────────────────────────────────────────────────────────────────
 
 // ── RESULTADO TAB
+// ── IRPF: tipo de retención seleccionable (tramos autónomos) ──
+let IRPF_PCT = LS.get('irpf_pct') ?? 0.20;
+function getIrpfPct(){ return IRPF_PCT; }
+function setIrpfPct(val){
+  IRPF_PCT = parseFloat(val);
+  LS.set('irpf_pct', IRPF_PCT);
+  renderIngresosTable();
+  renderResultado();
+}
+
+// ══════════════════════════════════════════════
+// DASHBOARD DE FINANZAS — tendencia mensual/anual
+// Ingresos, gastos, resultado, liquidaciones de Laura y Ángela
+// ══════════════════════════════════════════════
+
+// Lee los gastos guardados localmente para un mes concreto (sin depender del mes activo en pantalla)
+function getGastosDelMes(year, monthIdx){
+  const key=`${year}-${String(monthIdx+1).padStart(2,'0')}`;
+  const saved=LS.get(`gastos_${key}`);
+  if(!saved || !saved.length) return null; // null = sin datos registrados (no es lo mismo que 0)
+  const variables=Math.abs(saved.filter(g=>g.selected&&g.total<0&&!g.esProv).reduce((a,g)=>a+g.total,0));
+  // Adelanto fijo: comprobamos si hay algún registro de adelanto para ese mes
+  let adelanto=0;
+  GASTOS_FIJOS.forEach(gf=>{
+    const k=adelantoKey(year, monthIdx, gf.concepto);
+    if(ADELANTO_PAGOS[k]) adelanto += parseFloat(ADELANTO_PAGOS[k].real||ADELANTO_PAGOS[k].pagado||0) || gf.importe;
+  });
+  return { variables, adelanto, total: variables+adelanto };
+}
+
+function renderFinDashboard(){
+  const allYears=[2024,2025,2026];
+  const yIngSel=document.getElementById('fdash-year-ing');
+  if(yIngSel && yIngSel.dataset.init!=='1'){
+    yIngSel.value=String(TODAY.getFullYear());
+    yIngSel.dataset.init='1';
+  }
+  const yrIng=parseInt(yIngSel?.value||TODAY.getFullYear());
+
+  // ── KPIs principales ──
+  const ytotActual=YEAR_TOTALS[TODAY.getFullYear()]||0;
+  const ytotAnterior=YEAR_TOTALS[TODAY.getFullYear()-1]||0;
+  const crecimientoYoY=ytotAnterior>0?((ytotActual-ytotAnterior)/ytotAnterior*100):0;
+  const totalHistorico=(SEED_2023||0)+Object.values(YEAR_TOTALS).reduce((a,b)=>a+b,0);
+  const liqTotalLaura=LIQ_HISTORY.filter(e=>e.who==='laura').reduce((a,e)=>a+e.total,0);
+  const liqTotalAngela=LIQ_HISTORY.filter(e=>e.who==='angela').reduce((a,e)=>a+e.total,0);
+
+  document.getElementById('fdash-kpis').innerHTML=`
+    <div class="kpi b"><span class="kico">💰</span><div class="kl">Ingresos ${TODAY.getFullYear()}</div><div class="kv bl">${fmt(ytotActual)}</div><div class="ks">año en curso</div></div>
+    <div class="kpi ${crecimientoYoY>=0?'g':'r'}"><span class="kico">${crecimientoYoY>=0?'📈':'📉'}</span><div class="kl">Crecimiento vs año anterior</div><div class="kv" style="color:${crecimientoYoY>=0?'var(--green)':'var(--red)'}">${crecimientoYoY>=0?'+':''}${crecimientoYoY.toFixed(1)}%</div><div class="ks">${fmt(ytotAnterior)} → ${fmt(ytotActual)}</div></div>
+    <div class="kpi p"><span class="kico">🏛</span><div class="kl">Total histórico</div><div class="kv" style="color:var(--purple)">${fmt(totalHistorico)}</div><div class="ks">desde nov. 2023</div></div>
+    <div class="kpi b"><span class="kico">👩</span><div class="kl">Liquidado a Laura</div><div class="kv bl">${fmt(liqTotalLaura)}</div><div class="ks">histórico total</div></div>
+    <div class="kpi p"><span class="kico">👩</span><div class="kl">Liquidado a Ángela</div><div class="kv" style="color:var(--purple)">${fmt(liqTotalAngela)}</div><div class="ks">histórico total</div></div>
+  `;
+
+  // ── Ingresos por mes (del año seleccionado) ──
+  const tots=MONTHLY_TOTALS[yrIng]||new Array(12).fill(0);
+  const maxIng=Math.max(...tots,1);
+  document.getElementById('fdash-ingresos-mes').innerHTML=tots.map((v,i)=>
+    `<div class="brow"><span class="bname">${MN[i]}</span><div class="btrack"><div class="bfill" style="width:${v>0?Math.max(v/maxIng*100,2):2}%">${v>0?fmtK(v):''}</div></div></div>`
+  ).join('');
+
+  // ── Gastos por mes (todos los años con datos disponibles, mostrando el año actual) ──
+  const gastosPorMes=Array.from({length:12},(_,i)=>{
+    const g=getGastosDelMes(yrIng, i);
+    return g?g.total:0;
+  });
+  const maxGastos=Math.max(...gastosPorMes,1);
+  const algunGasto=gastosPorMes.some(v=>v>0);
+  document.getElementById('fdash-gastos-mes').innerHTML = algunGasto
+    ? gastosPorMes.map((v,i)=>`<div class="brow"><span class="bname">${MN[i]}</span><div class="btrack"><div class="bfill" style="width:${v>0?Math.max(v/maxGastos*100,2):2}%;background:var(--red)">${v>0?fmtK(v):''}</div></div></div>`).join('')
+    : '<div style="font-size:11px;color:var(--grey-text);padding:8px 0">Sin gastos registrados todavía para ningún mes de '+yrIng+'. Sube los Excel mensuales en la pestaña Gastos.</div>';
+
+  // ── Resultado neto por mes (Ingresos - Gastos - IRPF estimado) ──
+  const irpfPct=getIrpfPct();
+  const resultadoPorMes=Array.from({length:12},(_,i)=>{
+    const ingreso=tots[i]||0;
+    const g=getGastosDelMes(yrIng, i);
+    if(g===null) return null; // sin datos de gastos -> no podemos calcular resultado real
+    // Estimamos IRPF proporcional sobre ingresos del mes (aproximado, sin discriminar F/N por mes aquí)
+    return ingreso - g.total;
+  });
+  const validResults=resultadoPorMes.filter(v=>v!==null);
+  const maxResAbs=Math.max(...validResults.map(v=>Math.abs(v)),1);
+  document.getElementById('fdash-resultado-mes').innerHTML = validResults.length
+    ? resultadoPorMes.map((v,i)=>{
+        if(v===null) return `<div class="brow"><span class="bname">${MN[i]}</span><div class="btrack"><div class="bfill pale" style="width:2%;color:var(--grey-text)">sin datos</div></div></div>`;
+        const isNeg=v<0;
+        return `<div class="brow"><span class="bname">${MN[i]}</span><div class="btrack"><div class="bfill" style="width:${Math.max(Math.abs(v)/maxResAbs*100,2)}%;background:${isNeg?'var(--red)':'var(--green)'}">${fmtK(v)}</div></div></div>`;
+      }).join('')
+    : '<div style="font-size:11px;color:var(--grey-text);padding:8px 0">Registra gastos de al menos un mes para ver el resultado neto.</div>';
+
+  // ── Comparativa anual: Ingresos · Gastos · Resultado · Promedio/mes ──
+  document.getElementById('fdash-cmp-anual').innerHTML=allYears.map(y=>{
+    const ingresoAnual=YEAR_TOTALS[y]||0;
+    const gastosAnualArr=Array.from({length:12},(_,i)=>getGastosDelMes(y,i));
+    const hayGastos=gastosAnualArr.some(g=>g!==null);
+    const gastosAnual=hayGastos?gastosAnualArr.reduce((a,g)=>a+(g?g.total:0),0):null;
+    const resultadoAnual=hayGastos?ingresoAnual-gastosAnual:null;
+    const mesesConVenta=(MONTHLY_TOTALS[y]||[]).filter(v=>v>0).length||1;
+    const promedioMes=ingresoAnual/mesesConVenta;
+    return `<tr>
+      <td style="font-weight:800;font-family:'Barlow Condensed',sans-serif;font-size:14px;color:var(--blue)">${y}</td>
+      <td class="cb">${fmt(ingresoAnual)}</td>
+      <td class="cb" style="color:${hayGastos?'var(--red)':'var(--grey-text)'}">${hayGastos?fmt(gastosAnual):'—'}</td>
+      <td class="cb" style="color:${hayGastos?(resultadoAnual>=0?'var(--green)':'var(--red)'):'var(--grey-text)'};font-weight:700">${hayGastos?fmt(resultadoAnual):'—'}</td>
+      <td class="cb" style="color:var(--purple)">${fmt(promedioMes)}</td>
+    </tr>`;
+  }).join('');
+
+  // ── Liquidaciones: Laura vs Ángela ──
+  const liqLauraEntries=LIQ_HISTORY.filter(e=>e.who==='laura');
+  const liqAngelaEntries=LIQ_HISTORY.filter(e=>e.who==='angela');
+  const liqLauraTotal=liqLauraEntries.reduce((a,e)=>a+e.total,0);
+  const liqAngelaTotal=liqAngelaEntries.reduce((a,e)=>a+e.total,0);
+
+  document.getElementById('fdash-liq-totales').innerHTML=`
+    <div>
+      <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--blue);margin-bottom:4px;">👩 Laura — total histórico</div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:800;color:var(--blue);">${fmt(liqLauraTotal)}</div>
+      <div style="font-size:10px;color:var(--grey-text);margin-top:2px;">${liqLauraEntries.length} liquidaciones registradas</div>
+    </div>
+    <div>
+      <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--purple);margin-bottom:4px;">👩 Ángela — total histórico</div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:800;color:var(--purple);">${fmt(liqAngelaTotal)}</div>
+      <div style="font-size:10px;color:var(--grey-text);margin-top:2px;">${liqAngelaEntries.length} liquidaciones registradas</div>
+    </div>
+  `;
+
+  // Liquidaciones por mes — últimos registros, ambas en la misma barra comparativa
+  const liqByMes={};
+  LIQ_HISTORY.forEach(e=>{
+    if(!liqByMes[e.mes]) liqByMes[e.mes]={laura:0, angela:0, ts:e.ts};
+    liqByMes[e.mes][e.who]=(liqByMes[e.mes][e.who]||0)+e.total;
+  });
+  const mesesOrdenados=Object.entries(liqByMes).sort((a,b)=>(b[1].ts||0)-(a[1].ts||0)).slice(0,12);
+  const maxLiq=Math.max(...mesesOrdenados.map(([,v])=>Math.max(v.laura,v.angela)), 1);
+  document.getElementById('fdash-liq-mes').innerHTML = mesesOrdenados.length
+    ? mesesOrdenados.map(([mes,v])=>`
+        <div style="margin-bottom:10px;">
+          <div style="font-size:10px;font-weight:700;color:var(--grey-text);margin-bottom:3px;">${mes}</div>
+          <div class="brow" style="margin-bottom:3px;"><span class="bname" style="width:60px;font-size:9px;color:var(--blue)">Laura</span><div class="btrack"><div class="bfill" style="width:${v.laura>0?Math.max(v.laura/maxLiq*100,2):2}%">${v.laura>0?fmt(v.laura):''}</div></div></div>
+          <div class="brow"><span class="bname" style="width:60px;font-size:9px;color:var(--purple)">Ángela</span><div class="btrack"><div class="bfill" style="width:${v.angela>0?Math.max(v.angela/maxLiq*100,2):2}%;background:var(--purple)">${v.angela>0?fmt(v.angela):''}</div></div></div>
+        </div>`).join('')
+    : '<div style="font-size:11px;color:var(--grey-text);padding:8px 0">Sin liquidaciones registradas todavía. Guárdalas desde la pestaña Liquidación.</div>';
+
+  // ── Promedio de liquidación por año ──
+  document.getElementById('fdash-liq-promedio').innerHTML=allYears.map(y=>{
+    const lauraY=liqLauraEntries.filter(e=>e.mes.endsWith(String(y)));
+    const angelaY=liqAngelaEntries.filter(e=>e.mes.endsWith(String(y)));
+    const lauraTotalY=lauraY.reduce((a,e)=>a+e.total,0);
+    const angelaTotalY=angelaY.reduce((a,e)=>a+e.total,0);
+    const lauraProm=lauraY.length?lauraTotalY/lauraY.length:0;
+    const angelaProm=angelaY.length?angelaTotalY/angelaY.length:0;
+    return `<tr>
+      <td style="font-weight:800;font-family:'Barlow Condensed',sans-serif;font-size:14px;color:var(--blue)">${y}</td>
+      <td class="cb" style="color:var(--blue)">${lauraY.length?fmt(lauraTotalY):'—'}</td>
+      <td class="cb" style="color:var(--blue);font-weight:700">${lauraY.length?fmt(lauraProm):'—'}</td>
+      <td class="cb" style="color:var(--purple)">${angelaY.length?fmt(angelaTotalY):'—'}</td>
+      <td class="cb" style="color:var(--purple);font-weight:700">${angelaY.length?fmt(angelaProm):'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
 function renderResultado(){
   const mes=MN[finMonth]+' '+finYear;
   document.getElementById('rb-mes-label').textContent=mes;
   document.getElementById('liq-mes-badge')&&(document.getElementById('liq-mes-badge').textContent=mes);
+  // Sincronizar selector IRPF con el valor guardado
+  const irpfSel=document.getElementById('irpf-tramo');
+  if(irpfSel && irpfSel.dataset.init!=='1'){
+    irpfSel.value=String(IRPF_PCT);
+    irpfSel.dataset.init='1';
+  }
+  const irpfPct=getIrpfPct();
   const ingresos=MONTHLY_TOTALS[finYear]?.[finMonth]||0;
   const gastos=Math.abs(GASTOS_DATA.filter(g=>g.selected&&g.total<0&&!g.esProv).reduce((a,g)=>a+g.total,0))+getTotalAdelanto();
   const mesData=getFinData();
   const conFactura=mesData.filter(d=>d.factura==='F'&&d.b>0).reduce((a,d)=>a+d.b,0);
-  const irpf=conFactura*0.20;
+  const irpf=conFactura*irpfPct;
   const neto=ingresos-gastos-irpf;
   const laura=neto*0.65;
   const angela=neto*0.35;
@@ -2770,14 +3576,14 @@ function renderResultado(){
   document.getElementById('fin-kpi-resultado').innerHTML=`
     <div class="kpi b"><span class="kico">💰</span><div class="kl">Ingresos brutos</div><div class="kv bl">${fmt(ingresos)}</div></div>
     <div class="kpi r"><span class="kico">📤</span><div class="kl">Gastos</div><div class="kv" style="color:var(--red)">${fmt(gastos)}</div><div class="ks">${gastos?'':'Sube tu Excel de gastos'}</div></div>
-    <div class="kpi o"><span class="kico">🧾</span><div class="kl">IRPF (20% s/facturas)</div><div class="kv" style="color:var(--orange)">${fmt(irpf)}</div><div class="ks">${fmt(conFactura)} con factura</div></div>
+    <div class="kpi o"><span class="kico">🧾</span><div class="kl">IRPF (${(irpfPct*100).toFixed(0)}% s/facturas)</div><div class="kv" style="color:var(--orange)">${fmt(irpf)}</div><div class="ks">${fmt(conFactura)} con factura</div></div>
     <div class="kpi g"><span class="kico">🟢</span><div class="kl">Resultado neto</div><div class="kv">${fmt(neto)}</div></div>
   `;
 
   document.getElementById('rb-grid').innerHTML=`
     <div class="rb-item"><div class="rb-label">Ingresos brutos</div><div class="rb-val">${fmt(ingresos)}</div></div>
     <div class="rb-item"><div class="rb-label">− Gastos</div><div class="rb-val">− ${fmt(gastos)}</div><div class="rb-sub">${GASTOS_DATA.length} registros</div></div>
-    <div class="rb-item"><div class="rb-label">− IRPF 20%</div><div class="rb-val">− ${fmt(irpf)}</div><div class="rb-sub">${fmt(conFactura)} con factura</div></div>
+    <div class="rb-item"><div class="rb-label">− IRPF ${(irpfPct*100).toFixed(0)}%</div><div class="rb-val">− ${fmt(irpf)}</div><div class="rb-sub">${fmt(conFactura)} con factura</div></div>
     <div class="rb-item highlight"><div class="rb-label">= RESULTADO NETO</div><div class="rb-val">${fmt(neto)}</div></div>
     <div class="rb-item"><div class="rb-label">👩 Laura 65%</div><div class="rb-val">${fmt(laura)}</div></div>
     <div class="rb-item"><div class="rb-label">👩 Ángela 35%</div><div class="rb-val">${fmt(angela)}</div></div>
@@ -2792,7 +3598,7 @@ function renderResultado(){
       <div style="font-size:24px;color:var(--grey-text)">×</div>
       <div>
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--grey-text);margin-bottom:4px">Tipo IRPF</div>
-        <div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:800;color:var(--orange)">20%</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:800;color:var(--orange)">${(irpfPct*100).toFixed(0)}%</div>
       </div>
       <div style="font-size:24px;color:var(--grey-text)">=</div>
       <div>
@@ -2825,7 +3631,7 @@ function renderLiquidacion(){
   const gastos=Math.abs(GASTOS_DATA.filter(g=>g.selected&&g.total<0&&!g.esProv).reduce((a,g)=>a+g.total,0))+getTotalAdelanto();
   const mesData=getFinData();
   const conFactura=mesData.filter(d=>d.factura==='F'&&d.b>0).reduce((a,d)=>a+d.b,0);
-  const irpf=conFactura*0.20;
+  const irpf=conFactura*getIrpfPct();
   const neto=ingresos-gastos-irpf;
   const laura=neto*0.65;
   const angela=neto*0.35;
@@ -3085,13 +3891,17 @@ function renderMiniCharts(){
   rows1.forEach(r=>{const lbl=tipoLabel(r.t);m1[lbl]=(m1[lbl]||0)+r.b;});
   const s1=Object.entries(m1).sort((a,b)=>b[1]-a[1]);
   const max1=s1.length?s1[0][1]:1;
-  document.getElementById('mc1').innerHTML=s1.length?s1.map(([l,v],i)=>`
+  const totalFact1=rows1.reduce((a,r)=>a+r.b,0); // total facturación del año (todos los tipos)
+  document.getElementById('mc1').innerHTML=s1.length?s1.map(([l,v],i)=>{
+    const pct=totalFact1>0?(v/totalFact1*100):0;
+    return `
     <div class="brow mc-clickable" onclick="showPopup('${l.replace(/'/g,"\'")}','${yr1}','tipo')" title="Ver clientes">
       <span style="font-size:9px;font-weight:800;color:var(--grey-text);width:14px;flex-shrink:0;text-align:right">${i+1}</span>
       <span class="bname w" title="${l}" style="width:90px">${l.length>12?l.slice(0,11)+'…':l}</span>
       <div class="btrack"><div class="bfill" style="width:${Math.max(v/max1*100,2)}%">${fmtK(v)}</div></div>
+      <span style="font-size:10px;font-weight:800;color:var(--blue);flex-shrink:0;width:42px;text-align:right" title="${fmt(v)} de ${fmt(totalFact1)}">${pct.toFixed(1)}%</span>
       <span style="font-size:10px;color:var(--grey-text);flex-shrink:0">›</span>
-    </div>`).join(''):'<span style="font-size:11px;color:var(--grey-text)">Sin datos</span>';
+    </div>`;}).join(''):'<span style="font-size:11px;color:var(--grey-text)">Sin datos</span>';
 
   // ── GRÁFICA 2: Top locales — ordenado de mayor a menor ──
   const yr2=document.getElementById('mc2yr').value;
@@ -3100,13 +3910,17 @@ function renderMiniCharts(){
   rows2.forEach(r=>{m2[r.p]=(m2[r.p]||0)+r.b;});
   const s2=Object.entries(m2).sort((a,b)=>b[1]-a[1]).slice(0,8);
   const max2=s2.length?s2[0][1]:1;
-  document.getElementById('mc2').innerHTML=s2.length?s2.map(([l,v],i)=>`
+  const totalFact2=rows2.reduce((a,r)=>a+r.b,0); // total facturación del año (todos los locales)
+  document.getElementById('mc2').innerHTML=s2.length?s2.map(([l,v],i)=>{
+    const pct=totalFact2>0?(v/totalFact2*100):0;
+    return `
     <div class="brow mc-clickable" onclick="showPopup('${l.replace(/'/g,"\'")}','${yr2}','local')" title="Ver clientes">
       <span style="font-size:9px;font-weight:800;color:var(--grey-text);width:14px;flex-shrink:0;text-align:right">${i+1}</span>
       <span class="bname w" title="${l}" style="width:90px">${l.length>12?l.slice(0,11)+'…':l}</span>
       <div class="btrack"><div class="bfill lt" style="width:${Math.max(v/max2*100,2)}%">${fmtK(v)}</div></div>
+      <span style="font-size:10px;font-weight:800;color:var(--blue);flex-shrink:0;width:42px;text-align:right" title="${fmt(v)} de ${fmt(totalFact2)}">${pct.toFixed(1)}%</span>
       <span style="font-size:10px;color:var(--grey-text);flex-shrink:0">›</span>
-    </div>`).join(''):'<span style="font-size:11px;color:var(--grey-text)">Sin datos</span>';
+    </div>`;}).join(''):'<span style="font-size:11px;color:var(--grey-text)">Sin datos</span>';
 
   // ── GRÁFICA 3: Nº eventos por tipo — ordenado de mayor a menor ──
   const yr3=document.getElementById('mc3yr').value;
@@ -3122,6 +3936,46 @@ function renderMiniCharts(){
       <div class="btrack"><div class="bfill pale" style="width:${Math.max(v/max3*100,2)}%;color:var(--blue)">${v} ev.</div></div>
       <span style="font-size:10px;color:var(--grey-text);flex-shrink:0">›</span>
     </div>`).join(''):'<span style="font-size:11px;color:var(--grey-text)">Sin datos</span>';
+
+  // ── GRÁFICAS DE TARTA (pie chart) por tipo y por local ──
+  renderPieChart('mc1-pie', s1, totalFact1);
+  renderPieChart('mc2-pie', s2, totalFact2);
+}
+
+// ── Gráfica de tarta SVG simple, sin librerías ──
+const PIE_COLORS=['#004aad','#2e7be4','#5fa8f5','#00875a','#36b37e','#7c3aed','#a78bfa','#f59e0b','#ef4444','#ec4899'];
+function renderPieChart(elId, entries, total){
+  const el=document.getElementById(elId);
+  if(!el) return;
+  if(!entries.length || total<=0){ el.innerHTML=''; return; }
+  const cx=60, cy=60, r=55;
+  let startAngle=-90;
+  const segments=entries.map(([label,val],i)=>{
+    const pct=val/total;
+    const angle=pct*360;
+    const endAngle=startAngle+angle;
+    const x1=cx+r*Math.cos(startAngle*Math.PI/180);
+    const y1=cy+r*Math.sin(startAngle*Math.PI/180);
+    const x2=cx+r*Math.cos(endAngle*Math.PI/180);
+    const y2=cy+r*Math.sin(endAngle*Math.PI/180);
+    const largeArc=angle>180?1:0;
+    const path=`M${cx},${cy} L${x1.toFixed(2)},${y1.toFixed(2)} A${r},${r} 0 ${largeArc} 1 ${x2.toFixed(2)},${y2.toFixed(2)} Z`;
+    const color=PIE_COLORS[i%PIE_COLORS.length];
+    startAngle=endAngle;
+    return {path,color,label,pct};
+  });
+  const svgPaths=segments.map(s=>`<path d="${s.path}" fill="${s.color}" stroke="#fff" stroke-width="1.5"><title>${s.label}: ${(s.pct*100).toFixed(1)}%</title></path>`).join('');
+  const legend=segments.slice(0,6).map(s=>`
+    <div style="display:flex;align-items:center;gap:5px;font-size:9px;color:var(--grey-text);margin-bottom:3px">
+      <span style="width:8px;height:8px;border-radius:2px;background:${s.color};flex-shrink:0"></span>
+      <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:80px">${s.label}</span>
+      <span style="font-weight:700;color:var(--black);margin-left:auto">${(s.pct*100).toFixed(0)}%</span>
+    </div>`).join('');
+  el.innerHTML=`
+    <div style="display:flex;align-items:center;gap:14px;padding:8px 0">
+      <svg viewBox="0 0 120 120" style="width:90px;height:90px;flex-shrink:0">${svgPaths}</svg>
+      <div style="flex:1;min-width:0">${legend}</div>
+    </div>`;
 }
 
 // ── TAB 1 – EVENTOS (usa MONTHLY_TOTALS verificados) ──
@@ -3225,12 +4079,14 @@ function renderEventos(){
 // ── TAB 2 – VENTAS ──
 function renderWeek(){
   const ws=sow(TODAY),ms=som(TODAY),ys=soy(TODAY);
-  const g=(fn)=>D.filter(r=>{const d=pd(r.fv);return d&&fn(d);}).reduce((s,r)=>s+r.b,0);
+  const g=(fn)=>D.filter(r=>{const d=pd(r.fv);return d&&fn(d);}).reduce((s,r)=>s+(r.b||0),0);
   document.getElementById('w0').textContent=fmtK(g(d=>sameD(d,TODAY)))||'0 €';
   document.getElementById('w1').textContent=fmtK(g(d=>d>=ws&&d<=TODAY));
   document.getElementById('w2').textContent=fmtK(g(d=>d>=ms&&d<=TODAY));
   document.getElementById('w3').textContent=fmtK(g(d=>d>=ys&&d<=TODAY));
-  document.getElementById('w4').textContent=fmtK(g(()=>true));
+  // Total histórico = valor verificado del Dashboard (2023+2024+2025+2026...)
+  const totalHistorico=(SEED_2023||0)+Object.values(YEAR_TOTALS).reduce((a,b)=>a+b,0);
+  document.getElementById('w4').textContent=fmtK(totalHistorico);
 }
 function setPer(p,el){activePer=p;document.querySelectorAll('.ptab').forEach(t=>t.classList.remove('on'));el.classList.add('on');document.getElementById('vy').value='';document.getElementById('vm').value='';rv();}
 function rstV(){activePer='hoy';document.querySelectorAll('.ptab').forEach((t,i)=>t.classList.toggle('on',i===0));['vy','vm','ve'].forEach(id=>document.getElementById(id).value='');rv();}
@@ -3250,16 +4106,17 @@ function getVF(){
 }
 function rv(){
   const rows=getVF();const tot=rows.reduce((s,r)=>s+r.b,0);
-  const cob=rows.filter(r=>r.e==='COBRADO').reduce((s,r)=>s+r.b,0);const pen=rows.filter(r=>r.e==='PENDIENTE').reduce((s,r)=>s+r.b,0);
   document.getElementById('vk0').textContent=fmt(tot);document.getElementById('vk0s').textContent=rows.length+' registros';
-  document.getElementById('vk1').textContent=fmt(cob);document.getElementById('vk1s').textContent=tot>0?Math.round(cob/tot*100)+'%':'—';
-  document.getElementById('vk2').textContent=fmt(pen);document.getElementById('vk2s').textContent=tot>0?Math.round(pen/tot*100)+'%':'—';
   document.getElementById('vk3').textContent=rows.length;document.getElementById('vk4').textContent=rows.length?fmt(tot/rows.length):'—';
+  const topSale=rows.length?[...rows].sort((a,b)=>(b.b||0)-(a.b||0))[0]:null;
+  document.getElementById('vk5').textContent=topSale?fmt(topSale.b):'—';
+  document.getElementById('vk5s').textContent=topSale?topSale.cl:'';
   renderVMonthly();
-  const ws2=sow(TODAY);
-  const wdata=Array.from({length:7},(_,i)=>{const day=new Date(ws2);day.setDate(ws2.getDate()+i);const s=D.filter(r=>{const d=pd(r.fv);return d&&sameD(d,day);}).reduce((s,r)=>s+r.b,0);const fut=day>TODAY;return [DN[i],s,fut];});
-  const wmax=Math.max(...wdata.map(d=>d[1]),1);
-  document.getElementById('vbw').innerHTML=wdata.map(([l,v,f])=>`<div class="brow"><span class="bname">${l}</span><div class="btrack"><div class="bfill${f?' pale':''}" style="width:${v>0?Math.max(v/wmax*100,2):2}%">${v>0?fmtK(v):''}</div></div></div>`).join('');
+  renderVWeekStandalone();
+  renderVEventMonth();
+  renderVCompareYears();
+  renderVWeeklyAvg();
+  renderVSeasonality();
   const mp={};rows.forEach(r=>{mp[r.p]=(mp[r.p]||0)+r.b;});const sp=Object.entries(mp).sort((a,b)=>b[1]-a[1]).slice(0,8);
   document.getElementById('vbp').innerHTML=sp.length?bhtml(sp,sp[0][1],true):'<span style="font-size:11px;color:var(--grey-text)">Sin datos</span>';
   const mt={};rows.forEach(r=>{mt[r.t]=(mt[r.t]||0)+r.b;});const st=Object.entries(mt).sort((a,b)=>b[1]-a[1]);
@@ -3267,27 +4124,359 @@ function rv(){
   document.getElementById('vn').textContent=rows.length+' ventas';
   const sorted=[...rows].sort((a,b)=>(pd(b.fv)||0)-(pd(a.fv)||0));
   document.getElementById('vtb').innerHTML=sorted.length?sorted.map(r=>`<tr><td class="tcode">${r.c}</td><td>${r.cl}</td><td><strong>${r.fv}</strong></td><td style="color:var(--grey-text)">${r.fe}</td><td>${r.t}</td><td style="color:var(--grey-text);font-size:11px">${r.p}</td><td class="tamt">${fmt(r.b)}</td><td><span class="sbadge s${r.e}">${r.e}</span></td></tr>`).join(''):'<tr><td colspan="8" style="text-align:center;color:var(--grey-text);padding:24px">Sin resultados</td></tr>';
+
+  // ── Antelación de venta: días entre fecha venta y fecha evento ──
+  const leadDays=rows.map(r=>{
+    const dv=pd(r.fv), de=pd(r.fe);
+    if(!dv||!de) return null;
+    return Math.round((de-dv)/(1000*60*60*24));
+  }).filter(d=>d!==null && d>=0);
+
+  const vblEl=document.getElementById('vbl');
+  if(vblEl){
+    if(!leadDays.length){
+      vblEl.innerHTML='<span style="font-size:11px;color:var(--grey-text);padding:0 20px">Sin datos suficientes</span>';
+    } else {
+      const avg=leadDays.reduce((a,b)=>a+b,0)/leadDays.length;
+      const buckets=[
+        {label:'Mismo mes (0-30 días)', min:0, max:30},
+        {label:'1-2 meses (31-60 días)', min:31, max:60},
+        {label:'2-3 meses (61-90 días)', min:61, max:90},
+        {label:'3-6 meses (91-180 días)', min:91, max:180},
+        {label:'Más de 6 meses (180+)', min:181, max:Infinity},
+      ];
+      const counts=buckets.map(b=>({
+        label:b.label,
+        n:leadDays.filter(d=>d>=b.min&&d<=b.max).length
+      }));
+      const maxN=Math.max(...counts.map(c=>c.n),1);
+      const bucketsHtml=counts.map(c=>{
+        const pct=leadDays.length>0?(c.n/leadDays.length*100):0;
+        return `<div class="brow">
+          <span class="bname w" style="width:170px">${c.label}</span>
+          <div class="btrack"><div class="bfill" style="width:${c.n>0?Math.max(c.n/maxN*100,2):2}%">${c.n>0?c.n+' ev.':''}</div></div>
+          <span style="font-size:9px;font-weight:800;color:var(--blue);width:38px;text-align:right;flex-shrink:0">${pct>0?pct.toFixed(0)+'%':'—'}</span>
+        </div>`;
+      }).join('');
+      vblEl.innerHTML=`
+        <div style="padding:0 20px 12px;display:flex;gap:24px;">
+          <div><div style="font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:800;color:var(--blue)">${Math.round(avg)}</div><div style="font-size:10px;color:var(--grey-text);font-weight:700;text-transform:uppercase">días de media</div></div>
+        </div>
+        <div class="blist" style="padding:0 20px 16px">${bucketsHtml}</div>`;
+    }
+  }
 }
+// ── COMPARATIVA DE VENTAS POR MES ENTRE AÑOS ──
+function renderVCompareYears(){
+  const years=[2024,2025,2026];
+
+  // Cabecera
+  document.getElementById('vcmp-head').innerHTML=
+    '<th>Mes</th>'+years.map(y=>`<th style="text-align:right">${y}</th>`).join('');
+
+  // Por cada mes (0-11), suma de b por año según fecha venta
+  const rowsData=Array.from({length:12},(_,m)=>{
+    const vals=years.map(y=>{
+      const rows=D.filter(r=>{const d=pd(r.fv);return d&&d.getFullYear()===y&&d.getMonth()===m;});
+      return rows.reduce((a,r)=>a+(r.b||0),0);
+    });
+    return {month:m, vals};
+  });
+
+  document.getElementById('vcmp-body').innerHTML=rowsData.map(({month,vals})=>{
+    const cells=vals.map((v,i)=>{
+      // Comparar con año anterior si existe
+      let extra='';
+      if(i>0 && vals[i-1]>0){
+        const diff=((v-vals[i-1])/vals[i-1]*100);
+        const cls=diff>=0?'up':'dn';
+        const arrow=diff>=0?'▲':'▼';
+        extra=` <span class="pct ${cls}" style="font-size:9px">${arrow}${Math.abs(diff).toFixed(0)}%</span>`;
+      }
+      return `<td style="text-align:right">${v>0?fmt(v):'—'}${extra}</td>`;
+    }).join('');
+    return `<tr><td style="font-weight:700">${MN[month]}</td>${cells}</tr>`;
+  }).join('');
+
+  // Fila de totales
+  const totals=years.map((y,i)=>rowsData.reduce((a,r)=>a+r.vals[i],0));
+  document.getElementById('vcmp-foot').innerHTML=
+    '<tr class="total-row"><td style="font-weight:800;text-transform:uppercase;font-size:11px">TOTAL</td>'+
+    totals.map(t=>`<td style="text-align:right;font-weight:800">${fmt(t)}</td>`).join('')+
+    '</tr>';
+}
+
+// ── ANÁLISIS DE ESTACIONALIDAD HISTÓRICA ──
+// Usa TODOS los eventos (todos los años) y mira en qué mes (fecha venta) se cerraron,
+// agrupado por el mes del evento (fecha evento) — para detectar patrones reales
+function renderVSeasonality(){
+  const withBothDates=D.filter(r=>pd(r.fv) && pd(r.fe));
+
+  // 1. ¿En qué mes se VENDE más en general? (todas las fechas venta, todos los años)
+  const ventasPorMes=new Array(12).fill(0);
+  const eventosPorMesVenta=new Array(12).fill(0);
+  withBothDates.forEach(r=>{
+    const m=pd(r.fv).getMonth();
+    ventasPorMes[m]+=r.b||0;
+    eventosPorMesVenta[m]++;
+  });
+  const totalEventosConFv=withBothDates.length;
+  const topVentaMes=eventosPorMesVenta.indexOf(Math.max(...eventosPorMesVenta));
+
+  // 2. Para cada mes de EVENTO, ¿cuándo se suele cerrar? (mes más común de venta)
+  const porMesEvento={};
+  withBothDates.forEach(r=>{
+    const mEvento=pd(r.fe).getMonth();
+    const mVenta=pd(r.fv).getMonth();
+    if(!porMesEvento[mEvento]) porMesEvento[mEvento]=new Array(12).fill(0);
+    porMesEvento[mEvento][mVenta]++;
+  });
+
+  // Construir frases de insight por cada mes de evento que tenga datos suficientes
+  const insights=[];
+  Object.keys(porMesEvento).sort((a,b)=>a-b).forEach(mEventoStr=>{
+    const mEvento=parseInt(mEventoStr);
+    const ventasArr=porMesEvento[mEvento];
+    const totalEv=ventasArr.reduce((a,b)=>a+b,0);
+    if(totalEv<3) return; // necesitamos un mínimo de datos para que el insight sea fiable
+    const topMVenta=ventasArr.indexOf(Math.max(...ventasArr));
+    const pct=(ventasArr[topMVenta]/totalEv*100);
+    insights.push({mEvento, topMVenta, pct, totalEv});
+  });
+
+  let html='';
+
+  // Insight principal: mes con más ventas cerradas en general
+  if(totalEventosConFv>0){
+    html+=`<div class="ev-alert blue" style="margin-bottom:10px">
+      📈 <strong>${MN[topVentaMes]}</strong> es históricamente el mes en el que más eventos se cierran
+      (${eventosPorMesVenta[topVentaMes]} de ${totalEventosConFv} ventas con fecha registrada · ${(eventosPorMesVenta[topVentaMes]/totalEventosConFv*100).toFixed(0)}%)
+    </div>`;
+  }
+
+  // Insights por mes de evento
+  if(insights.length){
+    html+=`<div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--grey-text);margin:14px 0 8px">Cuándo se cierran los eventos de cada mes</div>`;
+    insights.forEach(({mEvento,topMVenta,pct,totalEv})=>{
+      const mismoMes=mEvento===topMVenta;
+      html+=`<div style="display:flex;align-items:baseline;gap:6px;padding:7px 0;border-bottom:1px solid var(--grey-2);font-size:12px;">
+        <span style="font-weight:700;min-width:90px">${MN[mEvento]}</span>
+        <span style="color:var(--grey-text)">→ se cierra mayoritariamente en</span>
+        <span style="font-weight:800;color:var(--blue)">${MN[topMVenta]}</span>
+        <span style="color:var(--grey-text);font-size:11px">(${pct.toFixed(0)}% · ${totalEv} eventos)</span>
+        ${mismoMes?'<span style="font-size:10px;color:var(--green);font-weight:700">· venta de último minuto</span>':''}
+      </div>`;
+    });
+  } else {
+    html+=`<div style="font-size:11px;color:var(--grey-text);padding:8px 0">Aún no hay suficientes eventos con ambas fechas (venta y evento) para un análisis fiable.</div>`;
+  }
+
+  document.getElementById('vseason-analysis').innerHTML=html;
+}
+
+// ── PROMEDIO DE VENTA SEMANAL POR MES ──
+// Total facturado del mes ÷ nº de semanas naturales que lo componen
+function renderVWeeklyAvg(){
+  const yearSel=document.getElementById('vavg-year');
+  if(yearSel.dataset.init!=='1'){
+    yearSel.value=TODAY.getFullYear();
+    yearSel.dataset.init='1';
+  }
+  const yr=parseInt(yearSel.value);
+
+  const cards=Array.from({length:12},(_,m)=>{
+    const rows=D.filter(r=>{const d=pd(r.fv);return d&&d.getFullYear()===yr&&d.getMonth()===m;});
+    const total=rows.reduce((a,r)=>a+(r.b||0),0);
+
+    // Nº de semanas naturales (lunes-domingo) que componen el mes
+    const firstDay=new Date(yr,m,1);
+    const lastDay=new Date(yr,m+1,0);
+    let cur=new Date(firstDay);
+    const dow=(cur.getDay()+6)%7;
+    cur.setDate(cur.getDate()-dow);
+    let numWeeks=0;
+    while(cur<=lastDay){ numWeeks++; cur.setDate(cur.getDate()+7); }
+
+    const avg=numWeeks>0?total/numWeeks:0;
+    return {month:m, total, numWeeks, avg, n:rows.length};
+  });
+
+  const maxAvg=Math.max(...cards.map(c=>c.avg), 1);
+
+  document.getElementById('vavg-grid').innerHTML=cards.map(({month,total,numWeeks,avg,n})=>{
+    const isTop=avg===maxAvg && avg>0;
+    return `<div style="background:${isTop?'var(--blue)':'var(--grey-1)'};border-radius:10px;padding:12px 14px;${isTop?'box-shadow:var(--shadow-md)':''}">
+      <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:${isTop?'rgba(255,255,255,.75)':'var(--grey-text)'};margin-bottom:4px;">${MN[month]}${isTop?' 🏆':''}</div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;color:${isTop?'#fff':'var(--blue)'};line-height:1;">${fmtK(avg)}</div>
+      <div style="font-size:9px;color:${isTop?'rgba(255,255,255,.7)':'var(--grey-text)'};margin-top:4px;">por semana · ${numWeeks} sem.</div>
+      <div style="font-size:9px;color:${isTop?'rgba(255,255,255,.6)':'var(--grey-text)'};margin-top:1px;">${fmt(total)} total · ${n} ev.</div>
+    </div>`;
+  }).join('');
+}
+
 function renderVMonthly(){
   const yr=parseInt(vYear);
-  const data=Array.from({length:12},(_,i)=>{const s=D.filter(r=>{const d=pd(r.fv);return d&&d.getFullYear()===yr&&d.getMonth()===i;}).reduce((s,r)=>s+r.b,0);return [MN[i],s];});
+  const data=Array.from({length:12},(_,i)=>{
+    const rows=D.filter(r=>{const d=pd(r.fv);return d&&d.getFullYear()===yr&&d.getMonth()===i;});
+    const s=rows.reduce((s,r)=>s+r.b,0);
+    return [MN[i], s, rows.length];
+  });
   const max=Math.max(...data.map(d=>d[1]),1);
-  document.getElementById('vbm').innerHTML=bhtml(data,max);
+  const totalYr=data.reduce((a,d)=>a+d[1],0);
+  const totalEv=data.reduce((a,d)=>a+d[2],0);
+
+  document.getElementById('vbm').innerHTML=data.map(([l,v,n],i)=>{
+    const pct=totalYr>0?(v/totalYr*100):0;
+    return `<div class="brow">
+      <span class="bname">${l}</span>
+      <div class="btrack"><div class="bfill" style="width:${v>0?Math.max(v/max*100,2):2}%">${v>0?fmtK(v):''}</div></div>
+      <span style="font-size:9px;font-weight:800;color:var(--blue);width:38px;text-align:right;flex-shrink:0">${pct>0?pct.toFixed(1)+'%':'—'}</span>
+      <span style="font-size:9px;color:var(--grey-text);width:34px;text-align:right;flex-shrink:0">${n>0?n+' ev.':''}</span>
+    </div>`;
+  }).join('');
+
+  // Resumen de estacionalidad: mes con más ventas
+  const sorted=[...data].sort((a,b)=>b[1]-a[1]);
+  const topMonth=sorted[0];
+  const elSummary=document.getElementById('vbm-summary');
+  if(elSummary && totalYr>0){
+    elSummary.innerHTML=`📈 <strong>${topMonth[0]}</strong> es el mes con más ventas cerradas (${fmt(topMonth[1])} · ${((topMonth[1]/totalYr)*100).toFixed(0)}% del año) · ${totalEv} ventas en total`;
+  }
+}
+
+// ── Desglose semanal de un mes concreto (al hacer clic en renderVMonthly) ──
+// ── ¿Cuándo se cerraron los eventos de un mes concreto? ──
+// Para los eventos con FECHA EVENTO en el mes seleccionado, agrupa por mes de FECHA VENTA
+function renderVEventMonth(){
+  const selEl=document.getElementById('vem-month');
+  if(selEl && selEl.dataset.init!=='1'){
+    selEl.value=TODAY.getMonth();
+    selEl.dataset.init='1';
+  }
+  const monthIdx=parseInt(selEl.value);
+  const yr=parseInt(vYear);
+
+  // Eventos cuya FECHA EVENTO cae en el mes/año seleccionado
+  const eventsOfMonth=D.filter(r=>{
+    const d=pd(r.fe);
+    return d && d.getFullYear()===yr && d.getMonth()===monthIdx;
+  });
+
+  if(!eventsOfMonth.length){
+    document.getElementById('vem').innerHTML='<span style="font-size:11px;color:var(--grey-text);padding:0 20px">Sin eventos para este mes</span>';
+    document.getElementById('vem-summary').innerHTML='';
+    return;
+  }
+
+  // Agrupar por mes/año de FECHA VENTA
+  const byVentaMonth={};
+  let sinFechaVenta=0;
+  eventsOfMonth.forEach(r=>{
+    const dv=pd(r.fv);
+    if(!dv){ sinFechaVenta++; return; }
+    const key=`${dv.getFullYear()}-${String(dv.getMonth()+1).padStart(2,'0')}`;
+    if(!byVentaMonth[key]) byVentaMonth[key]={count:0, total:0, label:`${MN[dv.getMonth()]} ${dv.getFullYear()}`};
+    byVentaMonth[key].count++;
+    byVentaMonth[key].total+=r.b||0;
+  });
+
+  const entries=Object.entries(byVentaMonth).sort((a,b)=>a[0].localeCompare(b[0]));
+  const totalEv=eventsOfMonth.length;
+  const maxCount=Math.max(...entries.map(([,v])=>v.count), 1);
+
+  document.getElementById('vem').innerHTML=entries.map(([key,v])=>{
+    const pct=(v.count/totalEv*100);
+    return `<div class="brow">
+      <span class="bname w" style="width:110px">${v.label}</span>
+      <div class="btrack"><div class="bfill" style="width:${Math.max(v.count/maxCount*100,2)}%">${v.count} ev.</div></div>
+      <span style="font-size:9px;font-weight:800;color:var(--blue);width:38px;text-align:right;flex-shrink:0">${pct.toFixed(0)}%</span>
+      <span style="font-size:9px;color:var(--grey-text);width:60px;text-align:right;flex-shrink:0">${fmtK(v.total)}</span>
+    </div>`;
+  }).join('') + (sinFechaVenta>0?`<div class="brow"><span class="bname w" style="width:110px;color:var(--grey-text)">Sin fecha venta</span><div class="btrack"><div class="bfill" style="width:${Math.max(sinFechaVenta/maxCount*100,2)}%;background:var(--grey-2);color:var(--grey-text)">${sinFechaVenta} ev.</div></div><span style="font-size:9px;color:var(--grey-text);width:38px;text-align:right">${(sinFechaVenta/totalEv*100).toFixed(0)}%</span><span style="width:60px"></span></div>`:'');
+
+  // Resumen: mes de venta más común
+  if(entries.length){
+    const top=entries.sort((a,b)=>b[1].count-a[1].count)[0];
+    document.getElementById('vem-summary').innerHTML=`📊 La mayoría de eventos de <strong>${MN[monthIdx]} ${yr}</strong> se vendieron en <strong>${top[1].label}</strong> (${top[1].count} de ${totalEv} eventos · ${(top[1].count/totalEv*100).toFixed(0)}%)`;
+  }
+}
+
+function renderVWeekStandalone(){
+  const monthSel=document.getElementById('vws-month');
+  const yearSel=document.getElementById('vws-year');
+  if(monthSel.dataset.init!=='1'){
+    monthSel.value=TODAY.getMonth();
+    yearSel.value=TODAY.getFullYear();
+    monthSel.dataset.init='1';
+  }
+  const monthIdx=parseInt(monthSel.value);
+  const yr=parseInt(yearSel.value);
+
+  // Semanas naturales (lunes a domingo) — la primera y última semana
+  // pueden incluir días del mes anterior/siguiente, igual que un calendario real
+  const firstDay=new Date(yr,monthIdx,1);
+  const lastDay=new Date(yr,monthIdx+1,0); // último día real del mes
+  const weeks=[];
+  let cur=new Date(firstDay);
+  // Retroceder al lunes de la semana que contiene el día 1
+  const dow=(cur.getDay()+6)%7; // 0=lunes
+  cur.setDate(cur.getDate()-dow);
+
+  while(cur<=lastDay){
+    const weekStart=new Date(cur);
+    const weekEnd=new Date(cur);
+    weekEnd.setDate(weekEnd.getDate()+6);
+    weeks.push([weekStart, weekEnd]);
+    cur.setDate(cur.getDate()+7);
+  }
+
+  const weekData=weeks.map(([ws,we],i)=>{
+    const rows=D.filter(r=>{
+      const d=pd(r.fv);
+      return d && d>=ws && d<=we;
+    });
+    const total=rows.reduce((a,r)=>a+r.b,0);
+    const label=`${String(ws.getDate()).padStart(2,'0')}/${ws.getMonth()+1} - ${String(we.getDate()).padStart(2,'0')}/${we.getMonth()+1}`;
+    return [`Sem.${i+1} (${label})`, total, rows.length];
+  });
+
+  const wmax=Math.max(...weekData.map(d=>d[1]),1);
+  document.getElementById('vbw-month').innerHTML=weekData.map(([l,v,n])=>
+    `<div class="brow">
+      <span class="bname" style="width:130px">${l}</span>
+      <div class="btrack"><div class="bfill" style="width:${v>0?Math.max(v/wmax*100,2):2}%">${v>0?fmtK(v):''}</div></div>
+      <span style="font-size:9px;color:var(--grey-text);width:34px;text-align:right;flex-shrink:0">${n>0?n+' ev.':''}</span>
+    </div>`
+  ).join('');
 }
 
 // ── TAB 3 – DETALLE ──
 function rstC(){['cy','cm','ce','ct2','cs2'].forEach(id=>document.getElementById(id).value='');rc();}
 function rc(){
   const yr=document.getElementById('cy').value,mo=document.getElementById('cm').value,es=document.getElementById('ce').value,ti=document.getElementById('ct2').value,sv=document.getElementById('cs2').value;
-  const rows=D.filter(r=>{const d=pd(r.fe);if(!d)return false;if(yr&&d.getFullYear()!==+yr)return false;if(mo&&d.getMonth()+1!==+mo)return false;if(es&&r.e!==es)return false;if(ti&&r.t!==ti)return false;if(sv&&r.s!==sv)return false;return true;});
-  const tot=rows.reduce((s,r)=>s+r.b,0);const cob=rows.filter(r=>r.e==='COBRADO').reduce((s,r)=>s+r.b,0);const pen=rows.filter(r=>r.e==='PENDIENTE').reduce((s,r)=>s+r.b,0);
+  const rows=D.filter(r=>{const d=pd(r.fe);if(!d)return false;if(yr&&d.getFullYear()!==+yr)return false;if(mo&&d.getMonth()+1!==+mo)return false;if(es&&estadoReal(r)!==es)return false;if(ti&&r.t!==ti)return false;if(sv&&r.s!==sv)return false;return true;});
+  const tot=rows.reduce((s,r)=>s+r.b,0);const cob=rows.filter(r=>estadoReal(r)==='COBRADO').reduce((s,r)=>s+r.b,0);const pen=rows.filter(r=>estadoReal(r)==='PENDIENTE').reduce((s,r)=>s+r.b,0);
   document.getElementById('ck0').textContent=fmt(tot);document.getElementById('ck0s').textContent=rows.length+' registros';
   document.getElementById('ck1').textContent=fmt(cob);document.getElementById('ck1s').textContent=tot>0?Math.round(cob/tot*100)+'%':'—';
   document.getElementById('ck2').textContent=fmt(pen);document.getElementById('ck2s').textContent=tot>0?Math.round(pen/tot*100)+'%':'—';
   document.getElementById('ck3').textContent=rows.length?fmt(tot/rows.length):'—';
   document.getElementById('cn').textContent=rows.length+' registros';
   const sorted=[...rows].sort((a,b)=>(pd(b.fe)||0)-(pd(a.fe)||0));
-  document.getElementById('ctb').innerHTML=sorted.length?sorted.map(r=>`<tr><td class="tcode">${r.c}</td><td>${r.cl}</td><td>${r.fe}</td><td>${r.t}</td><td style="color:var(--grey-text);font-size:11px">${r.p}</td><td style="color:var(--grey-text);font-size:11px">${r.s}</td><td class="tamt">${fmt(r.b)}</td><td><span class="sbadge s${r.e}">${r.e}</span></td></tr>`).join(''):'<tr><td colspan="8" style="text-align:center;color:var(--grey-text);padding:24px">Sin resultados</td></tr>';
+  document.getElementById('ctb').innerHTML=sorted.length?sorted.map(r=>{
+    const est=estadoReal(r);
+    return `<tr><td class="tcode">${r.c}</td><td>${r.cl}</td><td>${r.fe}</td><td>${r.t}</td><td style="color:var(--grey-text);font-size:11px">${r.p}</td><td style="color:var(--grey-text);font-size:11px">${r.s}</td><td class="tamt">${fmt(r.b)}</td><td><span class="sbadge s${est}">${est}</span></td></tr>`;
+  }).join(''):'<tr><td colspan="8" style="text-align:center;color:var(--grey-text);padding:24px">Sin resultados</td></tr>';
+}
+
+// ── Estado real de un evento ──
+// Si la FECHA EVENTO todavía no ha llegado → siempre "FUTURO"
+// Si ya pasó → se respeta el estado real del Sheets (COBRADO / PENDIENTE)
+function estadoReal(r){
+  const d=pd(r.fe);
+  if(d && d>TODAY) return 'FUTURO';
+  // Evento ya pasado: usar el estado tal cual viene, normalizando valores raros a PENDIENTE
+  if(r.e==='COBRADO') return 'COBRADO';
+  return 'PENDIENTE';
 }
 
 
