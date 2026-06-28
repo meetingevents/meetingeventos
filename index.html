@@ -1802,6 +1802,11 @@ async function initBackendSync() {
         esProv: r.esProv===1||r.esProv==='1'||r.esProv===true,
       }));
       LS.set(`gastos_${gastosMesKey()}`, remoteData);
+      // Actualizar también la variable en memoria, no solo el caché LS,
+      // y mostrar la tabla directamente si no había datos ya cargados
+      if(!GASTOS_DATA.length) {
+        GASTOS_DATA = remoteData;
+      }
     }
 
     updateBackendBtn('ok');
@@ -1809,7 +1814,16 @@ async function initBackendSync() {
     // Volver a pintar las vistas activas con los datos recién sincronizados
     if(curPage==='finanzas') {
       if(curFinTab==='ingresos') renderIngresosTable();
-      if(curFinTab==='gastos'){ renderAdelanto(); renderGastosManualTable(); }
+      if(curFinTab==='gastos'){
+        renderAdelanto();
+        renderGastosManualTable();
+        if(GASTOS_DATA.length){
+          document.getElementById('upload-zone-wrapper').style.display='none';
+          document.getElementById('gastos-table-wrap').style.display='block';
+          renderGastosTable();
+        }
+        updateGastosKPI();
+      }
       if(curFinTab==='resultado') renderResultado();
       if(curFinTab==='liquidacion') renderLiquidacion();
       if(curFinTab==='irpf') renderIrpfPage();
