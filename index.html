@@ -1114,6 +1114,47 @@ tr:hover td{background:var(--blue-glass);}
               <tfoot id="adelanto-tfoot"></tfoot>
             </table>
           </div>
+          <!-- Botón desplegable: añadir adelanto manual -->
+          <div style="padding:0 20px 16px;">
+            <button class="btn ghost" onclick="toggleAdelantoManualForm()" id="adelanto-manual-toggle" style="font-size:11px;padding:8px 14px;">
+              ＋ Introducir adelanto de gastos manualmente
+            </button>
+            <div id="adelanto-manual-form" style="display:none;margin-top:12px;padding:16px;background:var(--grey-1);border-radius:10px;border:1.5px solid var(--grey-2);">
+              <div style="display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr 1fr 1fr;gap:10px;align-items:end;">
+                <div>
+                  <label style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--grey-text);display:block;margin-bottom:4px;">Concepto</label>
+                  <input type="text" id="am-concepto" placeholder="Ej: Seguro local" style="width:100%;padding:7px 9px;border:1.5px solid var(--grey-2);border-radius:6px;font-size:11px;font-family:'Montserrat',sans-serif;">
+                </div>
+                <div>
+                  <label style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--grey-text);display:block;margin-bottom:4px;">Importe €</label>
+                  <input type="number" id="am-importe" placeholder="0.00" step="0.01" min="0" style="width:100%;padding:7px 9px;border:1.5px solid var(--grey-2);border-radius:6px;font-size:11px;font-family:'Montserrat',sans-serif;">
+                </div>
+                <div>
+                  <label style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--grey-text);display:block;margin-bottom:4px;">Vence</label>
+                  <input type="date" id="am-vence" style="width:100%;padding:7px 9px;border:1.5px solid var(--grey-2);border-radius:6px;font-size:11px;font-family:'Montserrat',sans-serif;">
+                </div>
+                <div>
+                  <label style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--grey-text);display:block;margin-bottom:4px;">Corresponde a</label>
+                  <input type="text" id="am-corresponde" placeholder="Ej: Julio 2026" style="width:100%;padding:7px 9px;border:1.5px solid var(--grey-2);border-radius:6px;font-size:11px;font-family:'Montserrat',sans-serif;">
+                </div>
+                <div>
+                  <label style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--grey-text);display:block;margin-bottom:4px;">Pagado</label>
+                  <select id="am-pagado" style="width:100%;padding:7px 9px;border:1.5px solid var(--grey-2);border-radius:6px;font-size:11px;font-family:'Montserrat',sans-serif;">
+                    <option value="0">Pendiente</option>
+                    <option value="1">✓ Apartado</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--grey-text);display:block;margin-bottom:4px;">Importe real</label>
+                  <input type="number" id="am-real" placeholder="0.00" step="0.01" min="0" style="width:100%;padding:7px 9px;border:1.5px solid var(--grey-2);border-radius:6px;font-size:11px;font-family:'Montserrat',sans-serif;">
+                </div>
+              </div>
+              <div style="margin-top:12px;display:flex;gap:8px;">
+                <button class="btn" onclick="addAdelantoManual()" style="font-size:11px;padding:8px 16px;">✓ Añadir adelanto</button>
+                <button class="btn ghost" onclick="toggleAdelantoManualForm()" style="font-size:11px;padding:8px 16px;">Cancelar</button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- GASTOS VARIABLES (Excel/CSV) -->
@@ -1164,6 +1205,40 @@ tr:hover td{background:var(--blue-glass);}
               </table>
             </div>
             <div style="padding:12px 20px;background:var(--grey-1);border-top:1px solid var(--grey-2);display:flex;gap:24px;flex-wrap:wrap;" id="gastos-footer"></div>
+          </div>
+        </div>
+
+        <!-- GASTOS EN EFECTIVO — INTRODUCCIÓN MANUAL -->
+        <div class="card" style="margin-top:14px;">
+          <div class="ch">
+            <div class="ct"><div class="cdot o"></div>💵 Gastos en efectivo (manual)</div>
+            <span class="badge orange" id="gastos-manual-count"></span>
+          </div>
+          <div style="padding:10px 20px 0;font-size:11px;color:var(--grey-text);">Añade aquí los gastos que has pagado en efectivo y que no aparecen en el Excel del banco. Se suman al total de gastos del mes.</div>
+          <div style="padding:14px 20px;display:grid;grid-template-columns:1fr 2fr 1fr auto;gap:10px;align-items:end;">
+            <div>
+              <label style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--grey-text);display:block;margin-bottom:4px;">Fecha</label>
+              <input type="date" id="gm-fecha" style="width:100%;padding:8px 10px;border:1.5px solid var(--grey-2);border-radius:8px;font-size:12px;font-family:'Montserrat',sans-serif;">
+            </div>
+            <div>
+              <label style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--grey-text);display:block;margin-bottom:4px;">Concepto</label>
+              <input type="text" id="gm-concepto" placeholder="Ej: material decoración, gasolina..." style="width:100%;padding:8px 10px;border:1.5px solid var(--grey-2);border-radius:8px;font-size:12px;font-family:'Montserrat',sans-serif;">
+            </div>
+            <div>
+              <label style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--grey-text);display:block;margin-bottom:4px;">Importe €</label>
+              <input type="number" id="gm-importe" placeholder="0.00" step="0.01" min="0" style="width:100%;padding:8px 10px;border:1.5px solid var(--grey-2);border-radius:8px;font-size:12px;font-family:'Montserrat',sans-serif;">
+            </div>
+            <button class="btn" onclick="addGastoManual()" style="padding:9px 18px;font-size:11px;white-space:nowrap;">+ Añadir</button>
+          </div>
+          <div class="twrap">
+            <table>
+              <thead><tr><th>Fecha</th><th>Concepto</th><th>Importe</th><th style="width:50px"></th></tr></thead>
+              <tbody id="gastos-manual-tbody"></tbody>
+            </table>
+          </div>
+          <div style="padding:12px 20px;background:var(--orange-bg);border-top:1px solid #f5dba8;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--orange)">Total gastos efectivo manual</span>
+            <span style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;color:var(--orange)" id="gastos-manual-total">0,00 €</span>
           </div>
         </div>
       </div>
@@ -1630,6 +1705,63 @@ async function initBackendSync() {
   // Load real-time data from COMISIONES first
   await loadRealtimeData();
   try {
+    // ── Cargar TODO lo guardado en DASHBOARD_SOBRES ──
+    // Esta hoja almacena varios sistemas distintos, diferenciados por prefijo de "concepto":
+    //  - sobres normales:        codigo|c1, codigo|c2...
+    //  - transferencias:         codigo|tr_c1, codigo|tr_c2...
+    //  - cierre de caja:         CIERRE_<año>_<mes> | cierre
+    //  - IRPF real trimestral:   IRPFREAL_<año>-<trim>T | irpf_real
+    const sobresData = await api('loadSobres');
+    if(sobresData?.sobres) {
+      Object.entries(sobresData.sobres).forEach(([key, checked]) => {
+        // key viene como "codigo|concepto" desde el backend
+        const [codigo, concepto] = key.split('|');
+        if(codigo && codigo.startsWith('IRPFREAL_')) {
+          // Importe real de IRPF por trimestre
+          const triKey = codigo.replace('IRPFREAL_', '');
+          try {
+            const val = typeof checked === 'string' ? JSON.parse(checked) : checked;
+            if(val !== null && val !== undefined) IRPF_REAL[triKey] = val;
+          } catch(e) {}
+        } else if(codigo && codigo.startsWith('CIERRE_')) {
+          // Estado de cierre de caja por mes — se queda en SOBRES tal cual (formato JSON string)
+          SOBRES[key] = checked;
+        } else {
+          // Sobre normal o transferencia
+          SOBRES[key] = checked;
+        }
+      });
+      LS.set('sobres', SOBRES);
+      LS.set('irpf_real', IRPF_REAL);
+    }
+
+    // ── Cargar configuración IRPF por mes y gastos manuales/adelantos manuales ──
+    // Estos se guardan vía saveGastos con mesKey prefijado, así que los recuperamos
+    // probando los mesKey de los últimos 24 meses (cubre 2 años completos)
+    const mesesAComprobar = [];
+    for(let i=0;i<24;i++){
+      const d = new Date(TODAY.getFullYear(), TODAY.getMonth()-i, 1);
+      mesesAComprobar.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
+    }
+    // Gastos manuales (prefijo MANUAL_) y adelantos manuales (prefijo ADELANTOMANUAL_)
+    for(const mk of mesesAComprobar) {
+      const manualResult = await api('loadGastos', {mesKey: `MANUAL_${mk}`});
+      if(manualResult?.rows?.length) {
+        GASTOS_MANUAL[mk] = manualResult.rows.map(r => ({
+          fecha: r.fecha, concepto: r.concepto, importe: Math.abs(parseFloat(r.total)||0)
+        }));
+      }
+      const adelManualResult = await api('loadGastos', {mesKey: `ADELANTOMANUAL_${mk}`});
+      if(adelManualResult?.rows?.length) {
+        ADELANTO_MANUAL[mk] = adelManualResult.rows.map(r => ({
+          concepto: r.concepto, importe: Math.abs(parseFloat(r.total)||0),
+          vence: r.fecha, corresponde: '—', pagado: r.selected===1||r.selected==='1', real: Math.abs(parseFloat(r.total)||0)
+        }));
+      }
+    }
+    LS.set('gastos_manual', GASTOS_MANUAL);
+    LS.set('adelanto_manual', ADELANTO_MANUAL);
+
     // Load all event data
     const evData = await api('loadAllEventos');
     if(evData?.eventos) {
@@ -1658,8 +1790,30 @@ async function initBackendSync() {
           adelantoKey(finYear, finMonth, concepto), v
         ])
       )};
+      LS.set('adelanto_pagos', ADELANTO_PAGOS);
     }
+    // Cargar también gastos variables (Excel) del mes actual desde el Sheets
+    const gastosDelMes = await api('loadGastos', {mesKey: gastosMesKey()});
+    if(gastosDelMes?.rows?.length) {
+      const remoteData = gastosDelMes.rows.map((r,i) => ({
+        id: i, fecha: r.fecha, concepto: r.concepto,
+        total: parseFloat(r.total)||0,
+        selected: r.selected===1||r.selected==='1'||r.selected===true,
+        esProv: r.esProv===1||r.esProv==='1'||r.esProv===true,
+      }));
+      LS.set(`gastos_${gastosMesKey()}`, remoteData);
+    }
+
     updateBackendBtn('ok');
+
+    // Volver a pintar las vistas activas con los datos recién sincronizados
+    if(curPage==='finanzas') {
+      if(curFinTab==='ingresos') renderIngresosTable();
+      if(curFinTab==='gastos'){ renderAdelanto(); renderGastosManualTable(); }
+      if(curFinTab==='resultado') renderResultado();
+      if(curFinTab==='liquidacion') renderLiquidacion();
+      if(curFinTab==='irpf') renderIrpfPage();
+    }
   } catch(e) { console.warn('initBackendSync:', e); }
 }
 
@@ -2279,7 +2433,7 @@ function goFinTab(t){
   });
   if(t==='dashboard') renderFinDashboard();
   if(t==='ingresos') renderIngresosTable();
-  if(t==='gastos'){ renderAdelanto(); autoLoadGastosMes(); }
+  if(t==='gastos'){ renderAdelanto(); autoLoadGastosMes(); renderGastosManualTable(); }
   if(t==='resultado') renderResultado();
   if(t==='liquidacion') renderLiquidacion();
   if(t==='irpf') renderIrpfPage();
@@ -3129,22 +3283,22 @@ const GASTOS_FIJOS = [
   {
     concepto: 'Cuota Autónomos',
     importe: 302.60,
-    // vence el día 30 del mes siguiente
     dia: 30,
+    mesesDesfase: 1, // vence el día 30 del mes siguiente al que se aparta
     descripcion: 'Se carga el día 30 del mes siguiente (Seguridad Social)'
   },
   {
     concepto: 'Google Ads · Anuncio Locales',
     importe: 312.00,
-    // vence el día 5 del mes siguiente + 1 (se factura el 5 de 2 meses después)
     dia: 5,
-    descripcion: 'Factura el día 5 del mes siguiente al que corresponde (Google Ads)'
+    mesesDesfase: 2, // si apartas en enero, la factura llega el 05/03 (corresponde a febrero)
+    descripcion: 'Factura el día 5, dos meses después de apartarlo (ej: apartado en enero → factura 05/03, corresponde a febrero)'
   },
   {
     concepto: 'Gestoría (Horus Firm SL)',
     importe: 78.59,
-    // vence el día 18 del mes siguiente
     dia: 18,
+    mesesDesfase: 1, // vence el día 18 del mes siguiente
     descripcion: 'Se pasa el día 18 del mes siguiente'
   }
 ];
@@ -3156,8 +3310,91 @@ function adelantoKey(year, month, concepto) {
   return `${year}-${month}-${concepto}`;
 }
 
+// ── ADELANTOS MANUALES (extra, introducidos a mano) ──
+// Guardados por mes: { "2026-06": [{concepto, importe, vence, corresponde, pagado, real}, ...] }
+let ADELANTO_MANUAL = LS.get('adelanto_manual') || {};
+
+function adelantoManualMesKey(){ return `${finYear}-${String(finMonth+1).padStart(2,'0')}`; }
+function getAdelantoManualMes(){ return ADELANTO_MANUAL[adelantoManualMesKey()] || []; }
+
+function saveAdelantoManual(){
+  LS.set('adelanto_manual', ADELANTO_MANUAL);
+  const key=adelantoManualMesKey();
+  api('saveGastos', {
+    mesKey: 'ADELANTOMANUAL_'+key,
+    rows: (ADELANTO_MANUAL[key]||[]).map(a=>({fecha:a.vence, concepto:a.concepto, total:-Math.abs(a.real||a.importe), selected:1, esProv:0}))
+  });
+}
+
+function toggleAdelantoManualForm(){
+  const form=document.getElementById('adelanto-manual-form');
+  form.style.display = form.style.display==='none' ? 'block' : 'none';
+}
+
+function addAdelantoManual(){
+  const concepto=document.getElementById('am-concepto').value.trim();
+  const importe=parseFloat(document.getElementById('am-importe').value);
+  const venceRaw=document.getElementById('am-vence').value;
+  const corresponde=document.getElementById('am-corresponde').value.trim();
+  const pagado=document.getElementById('am-pagado').value==='1';
+  const realInput=parseFloat(document.getElementById('am-real').value);
+
+  if(!concepto){ alert('Indica el concepto.'); return; }
+  if(!importe || importe<=0){ alert('Indica un importe válido.'); return; }
+
+  let vence='';
+  if(venceRaw){ const [y,m,d]=venceRaw.split('-'); vence=`${d}/${m}/${y}`; }
+
+  const key=adelantoManualMesKey();
+  if(!ADELANTO_MANUAL[key]) ADELANTO_MANUAL[key]=[];
+  ADELANTO_MANUAL[key].push({
+    concepto, importe, vence, corresponde: corresponde||'—',
+    pagado, real: realInput||importe
+  });
+  saveAdelantoManual();
+
+  // Limpiar formulario
+  document.getElementById('am-concepto').value='';
+  document.getElementById('am-importe').value='';
+  document.getElementById('am-vence').value='';
+  document.getElementById('am-corresponde').value='';
+  document.getElementById('am-pagado').value='0';
+  document.getElementById('am-real').value='';
+  toggleAdelantoManualForm();
+
+  renderAdelanto();
+  updateGastosKPI();
+}
+
+function deleteAdelantoManual(idx){
+  const key=adelantoManualMesKey();
+  if(!ADELANTO_MANUAL[key]) return;
+  ADELANTO_MANUAL[key].splice(idx,1);
+  saveAdelantoManual();
+  renderAdelanto();
+  updateGastosKPI();
+}
+
+function toggleAdelantoManualPagado(idx, checked){
+  const key=adelantoManualMesKey();
+  if(!ADELANTO_MANUAL[key]?.[idx]) return;
+  ADELANTO_MANUAL[key][idx].pagado=checked;
+  saveAdelantoManual();
+  renderAdelanto();
+  updateGastosKPI();
+}
+
+function setAdelantoManualReal(idx, val){
+  const key=adelantoManualMesKey();
+  if(!ADELANTO_MANUAL[key]?.[idx]) return;
+  ADELANTO_MANUAL[key][idx].real=parseFloat(val)||ADELANTO_MANUAL[key][idx].importe;
+  saveAdelantoManual();
+  updateGastosKPI();
+}
+
 function renderAdelanto() {
-  // The adelanto is for the NEXT month relative to finMonth/finYear
+  // El mes "al que corresponde" el gasto sigue siendo el mes siguiente para todos
+  // (es la etiqueta de a qué mes pertenece el gasto, no cuándo se paga)
   const nextMonth = finMonth === 11 ? 0 : finMonth + 1;
   const nextYear  = finMonth === 11 ? finYear + 1 : finYear;
   const badge = document.getElementById('adelanto-mes-badge');
@@ -3174,8 +3411,13 @@ function renderAdelanto() {
     totalAdelanto += gf.importe;
     totalRealPagado += realImporte;
 
-    // Vencimiento: dayX of nextMonth/nextYear
-    const vence = `${String(gf.dia).padStart(2,'0')}/${String(nextMonth+1).padStart(2,'0')}/${nextYear}`;
+    // Vencimiento real: día X, sumando el desfase de meses propio de cada concepto
+    // Ej: Google Ads con mesesDesfase=2 → si apartas en enero, vence en marzo (05/03)
+    const desfase = gf.mesesDesfase || 1;
+    let venceMonth = finMonth + desfase;
+    let venceYear = finYear;
+    while(venceMonth > 11){ venceMonth -= 12; venceYear += 1; }
+    const vence = `${String(gf.dia).padStart(2,'0')}/${String(venceMonth+1).padStart(2,'0')}/${venceYear}`;
 
     return `<tr>
       <td>
@@ -3201,7 +3443,36 @@ function renderAdelanto() {
     </tr>`;
   }).join('');
 
-  document.getElementById('adelanto-tbody').innerHTML = rows;
+  // ── Filas extra: adelantos manuales del mes ──
+  const manuales=getAdelantoManualMes();
+  const manualRows = manuales.map((am, idx) => {
+    totalAdelanto += am.importe;
+    totalRealPagado += (am.real || am.importe);
+    return `<tr style="background:var(--purple-bg);">
+      <td>
+        <div style="font-weight:700;font-size:11px">${am.concepto} <span style="font-size:8px;background:var(--purple);color:#fff;padding:1px 6px;border-radius:8px;margin-left:4px;">MANUAL</span></div>
+      </td>
+      <td><span style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:var(--purple)">${fmt(am.importe)}</span></td>
+      <td><span style="font-size:10px;font-weight:700;background:#ede9fe;color:var(--purple);padding:2px 8px;border-radius:4px">${am.vence||'—'}</span></td>
+      <td><span style="font-size:10px;font-weight:600;color:var(--grey-text)">${am.corresponde}</span></td>
+      <td>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;font-weight:600">
+          <input type="checkbox" onchange="toggleAdelantoManualPagado(${idx}, this.checked)"
+            ${am.pagado?'checked':''} style="width:15px;height:15px;accent-color:var(--green)">
+          <span style="color:${am.pagado?'var(--green)':'var(--grey-text)'}">${am.pagado?'✓ Apartado':'Pendiente'}</span>
+        </label>
+      </td>
+      <td style="display:flex;align-items:center;gap:6px;">
+        <input type="number" value="${am.real||am.importe}"
+          onchange="setAdelantoManualReal(${idx}, this.value)"
+          style="width:90px;padding:5px 8px;border:1.5px solid var(--grey-2);border-radius:6px;font-size:11px;font-family:'Montserrat',sans-serif;font-weight:700"
+          step="0.01" min="0">
+        <button onclick="deleteAdelantoManual(${idx})" title="Eliminar" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:14px;">🗑</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('adelanto-tbody').innerHTML = rows + manualRows;
   document.getElementById('adelanto-tfoot').innerHTML = `
     <tr style="background:var(--grey-1);font-weight:800;border-top:2px solid var(--grey-2)">
       <td style="padding:10px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;">TOTAL A APARTAR</td>
@@ -3246,12 +3517,92 @@ function adelantoSetReal(key, val) {
 }
 
 function getTotalAdelanto() {
-  return GASTOS_FIJOS.reduce((a, gf) => {
+  const fijos = GASTOS_FIJOS.reduce((a, gf) => {
     const key = adelantoKey(finYear, finMonth, gf.concepto);
     return a + (parseFloat(ADELANTO_PAGOS[key]?.real||0) || gf.importe);
   }, 0);
+  const manuales = getAdelantoManualMes().reduce((a, am) => a + (parseFloat(am.real)||am.importe), 0);
+  return fijos + manuales;
 }
 // ──────────────────────────────────────────────────────────────────
+
+// ── GASTOS EN EFECTIVO — INTRODUCCIÓN MANUAL ──
+// Guardados por mes: { "2026-06": [{fecha, concepto, importe}, ...], ... }
+let GASTOS_MANUAL = LS.get('gastos_manual') || {};
+
+function gastosManualMesKey(){ return `${finYear}-${String(finMonth+1).padStart(2,'0')}`; }
+
+function getGastosManualMes(){
+  return GASTOS_MANUAL[gastosManualMesKey()] || [];
+}
+
+function saveGastosManual(){
+  const key=gastosManualMesKey();
+  LS.set('gastos_manual', GASTOS_MANUAL);
+  api('saveGastos', {
+    mesKey: 'MANUAL_'+key,
+    rows: (GASTOS_MANUAL[key]||[]).map(g=>({fecha:g.fecha, concepto:g.concepto, total:-Math.abs(g.importe), selected:1, esProv:0}))
+  });
+}
+
+function addGastoManual(){
+  const fecha=document.getElementById('gm-fecha').value;
+  const concepto=document.getElementById('gm-concepto').value.trim();
+  const importe=parseFloat(document.getElementById('gm-importe').value);
+
+  if(!fecha){ alert('Indica la fecha del gasto.'); return; }
+  if(!concepto){ alert('Indica el concepto del gasto.'); return; }
+  if(!importe || importe<=0){ alert('Indica un importe válido.'); return; }
+
+  const key=gastosManualMesKey();
+  if(!GASTOS_MANUAL[key]) GASTOS_MANUAL[key]=[];
+  // Convertir fecha de yyyy-mm-dd (input date) a dd/mm/yyyy para consistencia visual
+  const [y,m,d]=fecha.split('-');
+  GASTOS_MANUAL[key].push({fecha:`${d}/${m}/${y}`, concepto, importe});
+  saveGastosManual();
+
+  document.getElementById('gm-fecha').value='';
+  document.getElementById('gm-concepto').value='';
+  document.getElementById('gm-importe').value='';
+
+  renderGastosManualTable();
+  updateGastosKPI();
+}
+
+function deleteGastoManual(idx){
+  const key=gastosManualMesKey();
+  if(!GASTOS_MANUAL[key]) return;
+  GASTOS_MANUAL[key].splice(idx,1);
+  saveGastosManual();
+  renderGastosManualTable();
+  updateGastosKPI();
+}
+
+function renderGastosManualTable(){
+  const tbody=document.getElementById('gastos-manual-tbody');
+  if(!tbody) return;
+  const items=getGastosManualMes();
+
+  document.getElementById('gastos-manual-count').textContent=items.length+' gastos';
+
+  if(!items.length){
+    tbody.innerHTML='<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--grey-text);font-size:11px">Sin gastos en efectivo añadidos este mes</td></tr>';
+  } else {
+    tbody.innerHTML=items.map((g,i)=>`<tr>
+      <td style="font-size:11px;color:var(--grey-text)">${g.fecha}</td>
+      <td style="font-weight:600;font-size:12px">${g.concepto}</td>
+      <td class="cb" style="color:var(--orange);font-weight:700">${fmt(g.importe)}</td>
+      <td style="text-align:center"><button onclick="deleteGastoManual(${i})" title="Eliminar" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:14px;">🗑</button></td>
+    </tr>`).join('');
+  }
+
+  const total=items.reduce((a,g)=>a+g.importe,0);
+  document.getElementById('gastos-manual-total').textContent=fmt(total);
+}
+
+function getTotalGastosManual(){
+  return getGastosManualMes().reduce((a,g)=>a+g.importe,0);
+}
 
 function updateGastosKPI(){
   const propios=GASTOS_DATA.filter(g=>g.selected&&g.total<0&&!g.esProv);
@@ -3259,12 +3610,14 @@ function updateGastosKPI(){
   const totalVariables=Math.abs(propios.reduce((a,g)=>a+g.total,0));
   const totalProvs=Math.abs(provs.reduce((a,g)=>a+g.total,0));
   const totalAdelanto=getTotalAdelanto();
-  const totalGastos=totalVariables+totalAdelanto;
+  const totalManual=getTotalGastosManual();
+  const totalGastos=totalVariables+totalAdelanto+totalManual;
   const ingresos=MONTHLY_TOTALS[finYear]?.[finMonth]||0;
   document.getElementById('fin-kpi-gastos').innerHTML=`
     <div class="kpi o"><span class="kico">📅</span><div class="kl">Adelanto gastos fijos</div><div class="kv" style="color:var(--orange)">${fmt(totalAdelanto)}</div><div class="ks">3 conceptos fijos</div></div>
     <div class="kpi r"><span class="kico">📤</span><div class="kl">Gastos propios</div><div class="kv" style="color:var(--red)">${fmt(totalVariables)}</div><div class="ks">${propios.length} seleccionados</div></div>
-    <div class="kpi r" style="border-top-color:var(--red)"><span class="kico">🧾</span><div class="kl">Total gastos reales</div><div class="kv" style="color:var(--red)">${fmt(totalGastos)}</div><div class="ks">fijos + variables</div></div>
+    ${totalManual>0?`<div class="kpi o"><span class="kico">💵</span><div class="kl">Gastos efectivo (manual)</div><div class="kv" style="color:var(--orange)">${fmt(totalManual)}</div><div class="ks">${getGastosManualMes().length} registros</div></div>`:''}
+    <div class="kpi r" style="border-top-color:var(--red)"><span class="kico">🧾</span><div class="kl">Total gastos reales</div><div class="kv" style="color:var(--red)">${fmt(totalGastos)}</div><div class="ks">fijos + variables + manual</div></div>
     <div class="kpi b"><span class="kico">💰</span><div class="kl">Ingresos ${MN[finMonth]}</div><div class="kv bl">${fmt(ingresos)}</div></div>
     <div class="kpi g"><span class="kico">📈</span><div class="kl">Resultado bruto</div><div class="kv">${fmt(ingresos-totalGastos)}</div><div class="ks">antes de IRPF</div></div>
     ${totalProvs>0?`<div class="kpi p"><span class="kico">🤝</span><div class="kl">Pagos proveedores</div><div class="kv" style="color:var(--purple)">${fmt(totalProvs)}</div><div class="ks">no computan en gastos</div></div>`:''}
@@ -3686,11 +4039,16 @@ function renderResultado(){
     <div style="margin-top:14px;">
       <div style="font-size:10px;font-weight:700;color:var(--grey-text);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;">Registros con factura (F)</div>
       <div style="display:flex;flex-wrap:wrap;gap:8px;">
-        ${mesData.filter(d=>d.factura==='F').map(d=>`
+        ${mesData.filter(d=>d.factura==='F').map(d=>{
+          const irpfRegistro = irpfCfg.manual!==null ? null : d.b*irpfCfg.pct;
+          const irpfTexto = irpfCfg.manual!==null
+            ? `incluido en importe manual del mes`
+            : `IRPF: ${fmt(irpfRegistro)}`;
+          return `
           <div style="background:var(--grey-1);border-radius:8px;padding:8px 12px;font-size:11px;">
             <strong>${d.c}</strong> · ${d.cl.split(' ').slice(0,2).join(' ')} · ${fmt(d.b)}
-            <span style="color:var(--red)"> → IRPF: ${fmt(d.b*0.2)}</span>
-          </div>`).join('')}
+            <span style="color:var(--red)"> → ${irpfTexto}</span>
+          </div>`;}).join('')}
       </div>
     </div>`:''
     }
