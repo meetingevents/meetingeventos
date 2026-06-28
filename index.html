@@ -616,6 +616,7 @@ tr:hover td{background:var(--blue-glass);}
         <button class="sb-subitem" onclick="goPage('finanzas');goFinTab('gastos')" id="ssb-gastos">📤 Gastos</button>
         <button class="sb-subitem" onclick="goPage('finanzas');goFinTab('resultado')" id="ssb-resultado">📈 Resultado</button>
         <button class="sb-subitem" onclick="goPage('finanzas');goFinTab('liquidacion')" id="ssb-liquidacion">✂️ Liquidación</button>
+        <button class="sb-subitem" onclick="goPage('finanzas');goFinTab('irpf')" id="ssb-irpf">🧾 Retenciones IRPF</button>
       </div>
       <button class="sb-item" onclick="goPage('clientes')" id="sb-clientes">
         <span class="ico">👥</span><span class="lbl">Clientes</span><span class="badge-new">Pronto</span>
@@ -915,6 +916,7 @@ tr:hover td{background:var(--blue-glass);}
         <button class="fin-tab" onclick="goFinTab('gastos')" id="ft-gastos" style="flex:1;padding:12px;border:none;background:none;color:var(--grey-text);font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;letter-spacing:.4px;text-transform:uppercase;">📤 Gastos</button>
         <button class="fin-tab" onclick="goFinTab('resultado')" id="ft-resultado" style="flex:1;padding:12px;border:none;background:none;color:var(--grey-text);font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;letter-spacing:.4px;text-transform:uppercase;">📈 Resultado</button>
         <button class="fin-tab" onclick="goFinTab('liquidacion')" id="ft-liquidacion" style="flex:1;padding:12px;border:none;background:none;color:var(--grey-text);font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;letter-spacing:.4px;text-transform:uppercase;">✂️ Liquidación</button>
+        <button class="fin-tab" onclick="goFinTab('irpf')" id="ft-irpf" style="flex:1;padding:12px;border:none;background:none;color:var(--grey-text);font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;letter-spacing:.4px;text-transform:uppercase;">🧾 IRPF</button>
       </div>
 
       <!-- DASHBOARD FINANZAS TAB -->
@@ -1176,9 +1178,10 @@ tr:hover td{background:var(--blue-glass);}
         <div style="margin-top:20px;" class="card">
           <div class="ch">
             <div class="ct"><div class="cdot"></div>Desglose IRPF</div>
-            <div style="display:flex;align-items:center;gap:8px;">
-              <span style="font-size:10px;font-weight:700;color:var(--grey-text);text-transform:uppercase;letter-spacing:.5px;">Tipo retención:</span>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <span style="font-size:10px;font-weight:700;color:var(--grey-text);text-transform:uppercase;letter-spacing:.5px;">Tipo retención (<span id="irpf-mes-label"></span>):</span>
               <select id="irpf-tramo" onchange="setIrpfPct(this.value)" style="font-size:11px;padding:5px 22px 5px 8px;font-weight:700;">
+                <option value="0">0% — Sin retención</option>
                 <option value="0.07">7% — Inicio actividad (1er año)</option>
                 <option value="0.15">15% — Inicio actividad (2º-3er año)</option>
                 <option value="0.20" selected>20% — Tipo general autónomos</option>
@@ -1187,6 +1190,11 @@ tr:hover td{background:var(--blue-glass);}
                 <option value="0.35">35% — Tramo alto</option>
                 <option value="0.47">47% — Tramo máximo</option>
               </select>
+              <span style="font-size:10px;color:var(--grey-text)">o</span>
+              <input type="number" id="irpf-manual-input" placeholder="Importe exacto €" step="0.01"
+                onchange="setIrpfManual(this.value)"
+                style="font-size:11px;padding:5px 10px;font-weight:700;width:130px;border:1.5px solid var(--grey-2);border-radius:6px;">
+              <button class="btn ghost" onclick="document.getElementById('irpf-manual-input').value='';clearIrpfManual()" style="font-size:10px;padding:5px 10px;" title="Volver a calcular por porcentaje">✕</button>
             </div>
           </div>
           <div style="padding:16px 20px;" id="irpf-detalle"></div>
@@ -1243,6 +1251,24 @@ tr:hover td{background:var(--blue-glass);}
         <div class="card" id="liq-history-card">
           <div class="ch"><div class="ct"><div class="cdot g"></div>Historial de liquidaciones</div></div>
           <div id="liq-history"></div>
+        </div>
+      </div>
+
+      <!-- RETENCIONES IRPF TAB -->
+      <div id="fintab-irpf" style="display:none;">
+        <div class="kgrid" id="irpf-kpis"></div>
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;">
+          <span style="font-size:11px;font-weight:700;color:var(--grey-text);text-transform:uppercase;letter-spacing:.5px;">Año</span>
+          <select id="irpf-page-year" onchange="renderIrpfPage()" style="font-size:12px;padding:6px 24px 6px 10px;font-weight:700;">
+            <option value="2026">2026</option><option value="2025">2025</option><option value="2024">2024</option>
+          </select>
+        </div>
+
+        <div id="irpf-trimestres-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-bottom:20px;"></div>
+
+        <div class="card">
+          <div class="ch"><div class="ct"><div class="cdot"></div>📊 Resultado final anual</div></div>
+          <div id="irpf-anual-resumen" style="padding:18px 20px;"></div>
         </div>
       </div>
     </div>
@@ -1336,8 +1362,23 @@ async function api(action, data={}) {
     const json = await resp.json();
     return json.success ? json.data : null;
   } catch(err) {
-    // Only warn if URL is configured — otherwise it's expected
-    if(BACKEND_URL) console.warn('Backend:', err.message);
+    if(BACKEND_URL) {
+      if(err.message === 'Failed to fetch') {
+        // No es un error HTTP — la petición de red ni siquiera llegó.
+        // Causas típicas: archivo abierto como file:// (no http/https),
+        // URL de Apps Script caducada, o la implementación fue borrada.
+        const isLocal = location.protocol.startsWith('file');
+        console.warn(
+          'Backend: Failed to fetch —',
+          isLocal
+            ? 'el dashboard se está abriendo como archivo local (file://). Súbelo a GitHub Pages para que el backend funcione.'
+            : 'revisa que la URL del Apps Script sea la más reciente (botón ⚙️) y que la implementación siga activa.'
+        );
+        updateBackendBtn(isLocal ? 'web' : 'error');
+      } else {
+        console.warn('Backend:', err.message);
+      }
+    }
     return null;
   }
 }
@@ -1371,7 +1412,7 @@ function showBackendConfig() {
         style="padding:9px 14px;background:#f3f4f6;border:1.5px solid #e5e7eb;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Montserrat',sans-serif">
         🔗 Probar
       </button>
-      <button onclick="(()=>{const u=document.getElementById('be-url').value.trim();if(!u)return;BACKEND_URL=u;localStorage.setItem('meeting_backend_url',u);document.getElementById('backend-modal').remove();updateBackendBtn();initBackendSync();})()"
+      <button onclick="(()=>{const u=document.getElementById('be-url').value.trim();if(!u)return;BACKEND_URL=u;localStorage.setItem('meeting_backend_url',u);document.getElementById('backend-modal').remove();updateBackendBtn('ok');initBackendSync();})()"
         style="padding:9px 16px;background:#004aad;color:#fff;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Montserrat',sans-serif;flex:1">
         💾 Guardar y conectar
       </button>
@@ -1382,17 +1423,9 @@ function showBackendConfig() {
   document.body.appendChild(modal);
 }
 
-function updateBackendBtn() {
-  const btn = document.getElementById('backend-status-btn');
-  if(!btn) return;
-  if(BACKEND_URL) {
-    btn.textContent = '☁️ Sincronizado';
-    btn.style.cssText += ';color:#00875a!important;background:#f0fdf4!important;border-color:#86efac!important';
-  } else {
-    btn.textContent = '⚙️ Conectar Drive';
-    btn.style.cssText += ';color:#d97706!important;background:#fff7ed!important;border-color:#fed7aa!important';
-  }
-}
+// updateBackendBtn(state) está definida más abajo, con soporte para varios estados
+// (ok / loading / error / none / web) — esta declaración duplicada se elimina
+// para evitar que sobrescriba la versión completa.
 
 
 // ════════════════════════════════════════════════════════════════
@@ -1626,7 +1659,7 @@ async function initBackendSync() {
         ])
       )};
     }
-    updateBackendBtn();
+    updateBackendBtn('ok');
   } catch(e) { console.warn('initBackendSync:', e); }
 }
 
@@ -2233,7 +2266,7 @@ function toggleSub(id){
 
 function goFinTab(t){
   curFinTab=t;
-  ['dashboard','ingresos','gastos','resultado','liquidacion'].forEach(tab=>{
+  ['dashboard','ingresos','gastos','resultado','liquidacion','irpf'].forEach(tab=>{
     const el=document.getElementById('fintab-'+tab);
     const btn=document.getElementById('ft-'+tab);
     const sbtn=document.getElementById('ssb-'+tab);
@@ -2249,6 +2282,7 @@ function goFinTab(t){
   if(t==='gastos'){ renderAdelanto(); autoLoadGastosMes(); }
   if(t==='resultado') renderResultado();
   if(t==='liquidacion') renderLiquidacion();
+  if(t==='irpf') renderIrpfPage();
 }
 
 function toggleSidebar(){
@@ -2740,14 +2774,15 @@ function renderIngresosTable(){
   const cobradoB=filtered.filter(d=>estadoReal(d)==='COBRADO').reduce((a,d)=>a+d.b,0);
   const pendienteB=filtered.filter(d=>estadoReal(d)==='PENDIENTE').reduce((a,d)=>a+(d.pend>0?d.pend:d.b),0);
   const conFactura=filtered.filter(d=>d.factura==='F'&&estadoReal(d)!=='FUTURO').reduce((a,d)=>a+d.b,0);
-  const irpfPct=getIrpfPct();
-  const irpf=conFactura*irpfPct;
+  const irpfCfg=getIrpfConfig();
+  const irpf=getIrpfImporte(conFactura);
+  const irpfLabel=irpfCfg.manual!==null?`importe manual`:`${(irpfCfg.pct*100).toFixed(0)}%`;
 
   document.getElementById('fin-kpi-ingresos').innerHTML=`
     <div class="kpi b"><span class="kico">💰</span><div class="kl">Total ${MN[finMonth]} ${finYear}</div><div class="kv bl">${fmt(MONTHLY_TOTALS[finYear]?.[finMonth]||0)}</div><div class="ks">Sheets verificado</div></div>
     <div class="kpi g"><span class="kico">✓</span><div class="kl">Cobrado</div><div class="kv">${fmt(cobradoB)}</div></div>
     <div class="kpi o"><span class="kico">⏳</span><div class="kl">Pendiente</div><div class="kv">${fmt(pendienteB)}</div></div>
-    <div class="kpi r"><span class="kico">🧾</span><div class="kl">Con factura (F)</div><div class="kv" style="color:var(--red)">${fmt(conFactura)}</div><div class="ks">IRPF ${(irpfPct*100).toFixed(0)}%: ${fmt(irpf)}</div></div>
+    <div class="kpi r"><span class="kico">🧾</span><div class="kl">Con factura (F)</div><div class="kv" style="color:var(--red)">${fmt(conFactura)}</div><div class="ks">IRPF ${irpfLabel}: ${fmt(irpf)}</div></div>
   `;
 
   document.getElementById('fin-ing-count').textContent=filtered.length+' registros';
@@ -2840,7 +2875,7 @@ function renderIngresosTable(){
   const note=document.getElementById('irpf-note');
   if(conFactura>0){
     note.style.display='block';
-    note.innerHTML=`⚠️ <strong>IRPF a retener:</strong> Tienes ${fmt(conFactura)} con factura (F) este mes → retención ${(irpfPct*100).toFixed(0)}% = <strong>${fmt(irpf)}</strong> a apartar para Hacienda.`;
+    note.innerHTML=`⚠️ <strong>IRPF a retener:</strong> Tienes ${fmt(conFactura)} con factura (F) este mes → retención ${irpfLabel} = <strong>${fmt(irpf)}</strong> a apartar para Hacienda.`;
   } else {
     note.style.display='none';
   }
@@ -3389,12 +3424,48 @@ async function checkGastosGuardados(){
 // ──────────────────────────────────────────────────────────────────
 
 // ── RESULTADO TAB
-// ── IRPF: tipo de retención seleccionable (tramos autónomos) ──
-let IRPF_PCT = LS.get('irpf_pct') ?? 0.20;
-function getIrpfPct(){ return IRPF_PCT; }
+// ── IRPF: tipo de retención por mes, con opción de importe manual ──
+// Estructura: { "2026-06": {pct: 0.20, manual: null}, "2026-07": {pct: 0.07, manual: 150.50}, ... }
+let IRPF_CONFIG = LS.get('irpf_config') || {};
+
+function irpfMesKey(){ return `${finYear}-${String(finMonth+1).padStart(2,'0')}`; }
+
+function getIrpfConfig(){
+  const key=irpfMesKey();
+  return IRPF_CONFIG[key] || {pct: 0.20, manual: null};
+}
+
+function getIrpfPct(){ return getIrpfConfig().pct; }
+
+function getIrpfImporte(baseConFactura){
+  const cfg=getIrpfConfig();
+  if(cfg.manual!==null && cfg.manual!==undefined && cfg.manual!=='') return parseFloat(cfg.manual)||0;
+  return baseConFactura * cfg.pct;
+}
+
 function setIrpfPct(val){
-  IRPF_PCT = parseFloat(val);
-  LS.set('irpf_pct', IRPF_PCT);
+  const key=irpfMesKey();
+  if(!IRPF_CONFIG[key]) IRPF_CONFIG[key]={pct:0.20, manual:null};
+  IRPF_CONFIG[key].pct=parseFloat(val);
+  IRPF_CONFIG[key].manual=null; // al elegir % se desactiva el importe manual
+  LS.set('irpf_config', IRPF_CONFIG);
+  renderIngresosTable();
+  renderResultado();
+}
+
+function setIrpfManual(val){
+  const key=irpfMesKey();
+  if(!IRPF_CONFIG[key]) IRPF_CONFIG[key]={pct:0.20, manual:null};
+  IRPF_CONFIG[key].manual = (val==='' ? null : parseFloat(val));
+  LS.set('irpf_config', IRPF_CONFIG);
+  renderIngresosTable();
+  renderResultado();
+}
+
+function clearIrpfManual(){
+  const key=irpfMesKey();
+  if(IRPF_CONFIG[key]) IRPF_CONFIG[key].manual=null;
+  LS.set('irpf_config', IRPF_CONFIG);
   renderIngresosTable();
   renderResultado();
 }
@@ -3462,13 +3533,11 @@ function renderFinDashboard(){
     ? gastosPorMes.map((v,i)=>`<div class="brow"><span class="bname">${MN[i]}</span><div class="btrack"><div class="bfill" style="width:${v>0?Math.max(v/maxGastos*100,2):2}%;background:var(--red)">${v>0?fmtK(v):''}</div></div></div>`).join('')
     : '<div style="font-size:11px;color:var(--grey-text);padding:8px 0">Sin gastos registrados todavía para ningún mes de '+yrIng+'. Sube los Excel mensuales en la pestaña Gastos.</div>';
 
-  // ── Resultado neto por mes (Ingresos - Gastos - IRPF estimado) ──
-  const irpfPct=getIrpfPct();
+  // ── Resultado neto por mes (Ingresos - Gastos) ──
   const resultadoPorMes=Array.from({length:12},(_,i)=>{
     const ingreso=tots[i]||0;
     const g=getGastosDelMes(yrIng, i);
     if(g===null) return null; // sin datos de gastos -> no podemos calcular resultado real
-    // Estimamos IRPF proporcional sobre ingresos del mes (aproximado, sin discriminar F/N por mes aquí)
     return ingreso - g.total;
   });
   const validResults=resultadoPorMes.filter(v=>v!==null);
@@ -3557,18 +3626,22 @@ function renderResultado(){
   const mes=MN[finMonth]+' '+finYear;
   document.getElementById('rb-mes-label').textContent=mes;
   document.getElementById('liq-mes-badge')&&(document.getElementById('liq-mes-badge').textContent=mes);
-  // Sincronizar selector IRPF con el valor guardado
+
+  // Sincronizar selector IRPF y campo manual con el mes activo (cada mes tiene su propia config)
+  const irpfCfg=getIrpfConfig();
   const irpfSel=document.getElementById('irpf-tramo');
-  if(irpfSel && irpfSel.dataset.init!=='1'){
-    irpfSel.value=String(IRPF_PCT);
-    irpfSel.dataset.init='1';
-  }
-  const irpfPct=getIrpfPct();
+  const irpfManualInput=document.getElementById('irpf-manual-input');
+  const irpfMesLabel=document.getElementById('irpf-mes-label');
+  if(irpfSel) irpfSel.value=String(irpfCfg.pct);
+  if(irpfManualInput) irpfManualInput.value=irpfCfg.manual!==null?irpfCfg.manual:'';
+  if(irpfMesLabel) irpfMesLabel.textContent=mes;
+
   const ingresos=MONTHLY_TOTALS[finYear]?.[finMonth]||0;
   const gastos=Math.abs(GASTOS_DATA.filter(g=>g.selected&&g.total<0&&!g.esProv).reduce((a,g)=>a+g.total,0))+getTotalAdelanto();
   const mesData=getFinData();
   const conFactura=mesData.filter(d=>d.factura==='F'&&d.b>0).reduce((a,d)=>a+d.b,0);
-  const irpf=conFactura*irpfPct;
+  const irpf=getIrpfImporte(conFactura);
+  const irpfLabel=irpfCfg.manual!==null?'importe manual':`${(irpfCfg.pct*100).toFixed(0)}%`;
   const neto=ingresos-gastos-irpf;
   const laura=neto*0.65;
   const angela=neto*0.35;
@@ -3576,14 +3649,14 @@ function renderResultado(){
   document.getElementById('fin-kpi-resultado').innerHTML=`
     <div class="kpi b"><span class="kico">💰</span><div class="kl">Ingresos brutos</div><div class="kv bl">${fmt(ingresos)}</div></div>
     <div class="kpi r"><span class="kico">📤</span><div class="kl">Gastos</div><div class="kv" style="color:var(--red)">${fmt(gastos)}</div><div class="ks">${gastos?'':'Sube tu Excel de gastos'}</div></div>
-    <div class="kpi o"><span class="kico">🧾</span><div class="kl">IRPF (${(irpfPct*100).toFixed(0)}% s/facturas)</div><div class="kv" style="color:var(--orange)">${fmt(irpf)}</div><div class="ks">${fmt(conFactura)} con factura</div></div>
+    <div class="kpi o"><span class="kico">🧾</span><div class="kl">IRPF (${irpfLabel} s/facturas)</div><div class="kv" style="color:var(--orange)">${fmt(irpf)}</div><div class="ks">${fmt(conFactura)} con factura</div></div>
     <div class="kpi g"><span class="kico">🟢</span><div class="kl">Resultado neto</div><div class="kv">${fmt(neto)}</div></div>
   `;
 
   document.getElementById('rb-grid').innerHTML=`
     <div class="rb-item"><div class="rb-label">Ingresos brutos</div><div class="rb-val">${fmt(ingresos)}</div></div>
     <div class="rb-item"><div class="rb-label">− Gastos</div><div class="rb-val">− ${fmt(gastos)}</div><div class="rb-sub">${GASTOS_DATA.length} registros</div></div>
-    <div class="rb-item"><div class="rb-label">− IRPF ${(irpfPct*100).toFixed(0)}%</div><div class="rb-val">− ${fmt(irpf)}</div><div class="rb-sub">${fmt(conFactura)} con factura</div></div>
+    <div class="rb-item"><div class="rb-label">− IRPF ${irpfLabel}</div><div class="rb-val">− ${fmt(irpf)}</div><div class="rb-sub">${fmt(conFactura)} con factura</div></div>
     <div class="rb-item highlight"><div class="rb-label">= RESULTADO NETO</div><div class="rb-val">${fmt(neto)}</div></div>
     <div class="rb-item"><div class="rb-label">👩 Laura 65%</div><div class="rb-val">${fmt(laura)}</div></div>
     <div class="rb-item"><div class="rb-label">👩 Ángela 35%</div><div class="rb-val">${fmt(angela)}</div></div>
@@ -3595,10 +3668,10 @@ function renderResultado(){
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--grey-text);margin-bottom:4px">Ingresos con factura (F)</div>
         <div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:800;color:var(--green)">${fmt(conFactura)}</div>
       </div>
-      <div style="font-size:24px;color:var(--grey-text)">×</div>
+      <div style="font-size:24px;color:var(--grey-text)">${irpfCfg.manual!==null?'':'×'}</div>
       <div>
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--grey-text);margin-bottom:4px">Tipo IRPF</div>
-        <div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:800;color:var(--orange)">${(irpfPct*100).toFixed(0)}%</div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--grey-text);margin-bottom:4px">${irpfCfg.manual!==null?'Importe manual':'Tipo IRPF'}</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:800;color:var(--orange)">${irpfCfg.manual!==null?fmt(irpfCfg.manual):(irpfCfg.pct*100).toFixed(0)+'%'}</div>
       </div>
       <div style="font-size:24px;color:var(--grey-text)">=</div>
       <div>
@@ -3606,7 +3679,7 @@ function renderResultado(){
         <div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:800;color:var(--red)">${fmt(irpf)}</div>
       </div>
       <div style="margin-left:auto;padding:10px 16px;background:var(--orange-bg);border-radius:8px;font-size:11px;font-weight:600;color:var(--orange);">
-        ℹ️ ${conFactura>0?'Apartar '+fmt(irpf)+' para la declaración':'Sin facturas este mes → sin IRPF a retener'}
+        ℹ️ ${irpf>0?'Apartar '+fmt(irpf)+' para la declaración':'Sin IRPF a retener este mes'}
       </div>
     </div>
     ${mesData.filter(d=>d.factura==='F').length?`
@@ -3625,13 +3698,157 @@ function renderResultado(){
 }
 
 // ── LIQUIDACIÓN TAB
+// ══════════════════════════════════════════════
+// RETENCIONES IRPF — vista trimestral
+// ══════════════════════════════════════════════
+const TRIMESTRES = [
+  {n:1, label:'1T', meses:[0,1,2],  nombre:'Enero · Febrero · Marzo'},
+  {n:2, label:'2T', meses:[3,4,5],  nombre:'Abril · Mayo · Junio'},
+  {n:3, label:'3T', meses:[6,7,8],  nombre:'Julio · Agosto · Septiembre'},
+  {n:4, label:'4T', meses:[9,10,11],nombre:'Octubre · Noviembre · Diciembre'},
+];
+
+// Lo que realmente te ha cobrado la gestoría por trimestre — se guarda manualmente
+// Estructura: { "2026-1T": 450.00, "2026-2T": 320.50, ... }
+let IRPF_REAL = LS.get('irpf_real') || {};
+
+function irpfRealKey(year, trimestre){ return `${year}-${trimestre}T`; }
+
+function setIrpfReal(year, trimestre, valor){
+  const key = irpfRealKey(year, trimestre);
+  if(valor === '' || valor === null) delete IRPF_REAL[key];
+  else IRPF_REAL[key] = parseFloat(valor) || 0;
+  LS.set('irpf_real', IRPF_REAL);
+  api('saveSobre', { items: [{codigo: `IRPFREAL_${key}`, concepto: 'irpf_real', checked: JSON.stringify(IRPF_REAL[key] ?? null)}] });
+  renderIrpfPage();
+}
+
+// Calcula lo retenido (apartado) en un mes concreto, usando la config de ese mes
+function getIrpfRetenidoMes(year, monthIdx){
+  const key = `${year}-${String(monthIdx+1).padStart(2,'0')}`;
+  const cfg = IRPF_CONFIG[key];
+  const mesData = D.filter(d=>{ const dt=pd(d.fe); return dt && dt.getFullYear()===year && dt.getMonth()===monthIdx; });
+  const conFactura = mesData.filter(d=>d.factura==='F'&&d.b>0).reduce((a,d)=>a+d.b,0);
+  if(!cfg) return { importe: conFactura*0.20, pct: 0.20, manual: false, base: conFactura };
+  if(cfg.manual!==null && cfg.manual!==undefined) return { importe: parseFloat(cfg.manual)||0, pct: null, manual: true, base: conFactura };
+  return { importe: conFactura*cfg.pct, pct: cfg.pct, manual: false, base: conFactura };
+}
+
+function renderIrpfPage(){
+  const yearSel=document.getElementById('irpf-page-year');
+  if(yearSel && yearSel.dataset.init!=='1'){
+    yearSel.value=String(TODAY.getFullYear());
+    yearSel.dataset.init='1';
+  }
+  const year=parseInt(yearSel.value);
+
+  let totalRetenidoAnual=0, totalRealAnual=0;
+  const trimestresData=[];
+
+  TRIMESTRES.forEach(tri=>{
+    const mesesInfo=tri.meses.map(m=>{
+      const r=getIrpfRetenidoMes(year, m);
+      return {mes:m, ...r};
+    });
+    const totalRetenidoTri=mesesInfo.reduce((a,m)=>a+m.importe,0);
+    const realKey=irpfRealKey(year, tri.n);
+    const realTri=IRPF_REAL[realKey];
+    const tieneReal=realTri!==undefined && realTri!==null;
+    const remanente=tieneReal?(totalRetenidoTri-realTri):null;
+
+    totalRetenidoAnual+=totalRetenidoTri;
+    if(tieneReal) totalRealAnual+=realTri;
+
+    trimestresData.push({tri, mesesInfo, totalRetenidoTri, realTri, tieneReal, remanente});
+  });
+
+  // ── KPIs ──
+  const remanenteAnualCalculable=trimestresData.every(t=>t.tieneReal);
+  const remanenteAnual=remanenteAnualCalculable?(totalRetenidoAnual-totalRealAnual):null;
+  document.getElementById('irpf-kpis').innerHTML=`
+    <div class="kpi o"><span class="kico">🧾</span><div class="kl">Retenido ${year} (apartado)</div><div class="kv" style="color:var(--orange)">${fmt(totalRetenidoAnual)}</div><div class="ks">mes a mes</div></div>
+    <div class="kpi r"><span class="kico">🏛</span><div class="kl">Cobrado real ${year}</div><div class="kv" style="color:var(--red)">${trimestresData.some(t=>t.tieneReal)?fmt(totalRealAnual):'—'}</div><div class="ks">${trimestresData.filter(t=>t.tieneReal).length}/4 trimestres registrados</div></div>
+    <div class="kpi ${remanenteAnual===null?'p':(remanenteAnual>=0?'g':'r')}"><span class="kico">${remanenteAnual===null?'❓':(remanenteAnual>=0?'✅':'⚠️')}</span><div class="kl">Remanente anual</div><div class="kv" style="color:${remanenteAnual===null?'var(--grey-text)':(remanenteAnual>=0?'var(--green)':'var(--red)')}">${remanenteAnual===null?'Pendiente':fmt(remanenteAnual)}</div><div class="ks">${remanenteAnual===null?'Faltan trimestres':(remanenteAnual>=0?'Te sobró':'Te faltó apartar')}</div></div>
+  `;
+
+  // ── Tarjetas por trimestre ──
+  document.getElementById('irpf-trimestres-grid').innerHTML=trimestresData.map(({tri, mesesInfo, totalRetenidoTri, realTri, tieneReal, remanente})=>{
+    const mesesHtml=mesesInfo.map(m=>{
+      const label=m.manual?'manual':(m.pct!==null?(m.pct*100).toFixed(0)+'%':'—');
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--grey-2);font-size:11px;">
+        <span style="color:var(--grey-text);font-weight:600">${MN[m.mes]}</span>
+        <span style="font-size:9px;background:var(--grey-1);padding:2px 7px;border-radius:8px;font-weight:700;color:var(--grey-text)">${label}</span>
+        <span style="font-weight:700;color:var(--orange)">${fmt(m.importe)}</span>
+      </div>`;
+    }).join('');
+
+    const remColor=remanente===null?'var(--grey-text)':(remanente>=0?'var(--green)':'var(--red)');
+    const remBg=remanente===null?'var(--grey-1)':(remanente>=0?'var(--green-bg)':'var(--red-bg)');
+    const remIcon=remanente===null?'❓':(remanente>=0?'✅':'⚠️');
+    const remTexto=remanente===null?'Introduce el importe real para calcular':(remanente>=0?'Te ha sobrado':'Te ha faltado apartar');
+
+    return `<div class="card" style="margin:0;">
+      <div class="ch"><div class="ct"><div class="cdot"></div>${tri.label} · ${year}</div></div>
+      <div style="padding:8px 18px 0;font-size:10px;color:var(--grey-text);font-weight:600;">${tri.nombre}</div>
+      <div style="padding:12px 18px 8px;">${mesesHtml}</div>
+      <div style="padding:10px 18px;background:var(--orange-bg);display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--grey-2);">
+        <span style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--orange)">Total retenido</span>
+        <span style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;color:var(--orange)">${fmt(totalRetenidoTri)}</span>
+      </div>
+      <div style="padding:12px 18px;border-top:1px solid var(--grey-2);">
+        <label style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--grey-text);display:block;margin-bottom:6px;">Importe real cobrado por la gestoría</label>
+        <input type="number" value="${realTri??''}" placeholder="0.00" step="0.01"
+          onchange="setIrpfReal(${year},${tri.n},this.value)"
+          style="width:100%;padding:8px 10px;border:1.5px solid var(--grey-2);border-radius:8px;font-size:13px;font-weight:700;font-family:'Montserrat',sans-serif;">
+      </div>
+      <div style="padding:12px 18px;background:${remBg};border-top:1px solid var(--grey-2);display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:${remColor}">${remIcon} Remanente</span>
+        <div style="text-align:right">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;color:${remColor}">${remanente===null?'—':fmt(remanente)}</div>
+          <div style="font-size:9px;color:${remColor}">${remTexto}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // ── Resumen anual ──
+  const anualEl=document.getElementById('irpf-anual-resumen');
+  if(!remanenteAnualCalculable){
+    anualEl.innerHTML=`<div style="font-size:12px;color:var(--grey-text);">Introduce el importe real de los 4 trimestres para ver el resultado final del año.</div>`;
+  } else {
+    anualEl.innerHTML=`
+      <div style="display:flex;flex-wrap:wrap;gap:24px;align-items:center;">
+        <div>
+          <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--orange);margin-bottom:4px;">Total retenido (apartado)</div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:30px;font-weight:800;color:var(--orange);">${fmt(totalRetenidoAnual)}</div>
+        </div>
+        <div style="font-size:24px;color:var(--grey-text)">−</div>
+        <div>
+          <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--red);margin-bottom:4px;">Total cobrado real (4 trimestres)</div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:30px;font-weight:800;color:var(--red);">${fmt(totalRealAnual)}</div>
+        </div>
+        <div style="font-size:24px;color:var(--grey-text)">=</div>
+        <div style="background:${remanenteAnual>=0?'var(--green-bg)':'var(--red-bg)'};border-radius:10px;padding:10px 18px;">
+          <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:${remanenteAnual>=0?'var(--green)':'var(--red)'};margin-bottom:4px;">Remanente anual</div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:30px;font-weight:800;color:${remanenteAnual>=0?'var(--green)':'var(--red)'};">${fmt(remanenteAnual)}</div>
+        </div>
+      </div>
+      <div style="margin-top:16px;padding:12px 16px;background:var(--grey-1);border-radius:10px;font-size:12px;color:var(--grey-text);">
+        ${remanenteAnual>=0
+          ? `✅ Has apartado <strong>${fmt(remanenteAnual)}</strong> más de lo que finalmente te ha cobrado la gestoría en todo el año.`
+          : `⚠️ Te ha faltado apartar <strong>${fmt(Math.abs(remanenteAnual))}</strong> respecto a lo que finalmente te ha cobrado la gestoría en todo el año.`}
+      </div>
+    `;
+  }
+}
+
 function renderLiquidacion(){
   renderResultado(); // ensure resultado is computed
   const ingresos=MONTHLY_TOTALS[finYear]?.[finMonth]||0;
   const gastos=Math.abs(GASTOS_DATA.filter(g=>g.selected&&g.total<0&&!g.esProv).reduce((a,g)=>a+g.total,0))+getTotalAdelanto();
   const mesData=getFinData();
   const conFactura=mesData.filter(d=>d.factura==='F'&&d.b>0).reduce((a,d)=>a+d.b,0);
-  const irpf=conFactura*getIrpfPct();
+  const irpf=getIrpfImporte(conFactura);
   const neto=ingresos-gastos-irpf;
   const laura=neto*0.65;
   const angela=neto*0.35;
