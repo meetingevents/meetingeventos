@@ -2561,13 +2561,97 @@ function renderFinanzas(){
   const sel=document.getElementById('fin-month-sel');
   sel.innerHTML=MN.map((m,i)=>`<button class="fmb${i===finMonth?' on':''}" onclick="setFinMonth(${i})">${m}</button>`).join('');
   goFinTab(curFinTab);
+  syncMesActual();
 }
 
 function setFinMonth(m){
   finMonth=m;
   document.querySelectorAll('.fmb').forEach((b,i)=>b.classList.toggle('on',i===m));
   goFinTab(curFinTab);
+  syncMesActual();
+}
+
+// Sincroniza TODO lo relacionado con el mes activo (finYear/finMonth) desde el backend:
+// adelantos fijos, gastos del Excel, gastos manuales, adelantos manuales, IRPF del mes
+// y estado de cierre de caja. Se llama cada vez que se cambia de mes, no solo al arrancar.
+async function syncMesActual(){
+  if(!BACKEND_URL) { if(curFinTab==='gastos') autoLoadGastosMes(); return; }
+  const mesKey = `${finYear}-${String(finMonth+1).padStart(2,'0')}`;
+
+  try {
+    // ── Adelantos fijos del mes ──
+    const adelData = await api('loadAdelantos', {mesKey});
+    if(adelData?.adelantos) {
+      Object.entries(adelData.adelantos).forEach(([concepto, v]) => {
+        ADELANTO_PAGOS[adelantoKey(finYear, finMonth, concepto)] = v;
+      });
+      LS.set('adelanto_pagos', ADELANTO_PAGOS);
+    }
+
+    // ── Adelantos manuales y gastos manuales de ese mes concreto ──
+    const adelManualResult = await api('loadGastos', {mesKey: `ADELANTOMANUAL_${mesKey}`});
+    if(adelManualResult?.rows?.length) {
+      ADELANTO_MANUAL[mesKey] = adelManualResult.rows.map(r => ({
+        concepto: r.concepto, importe: Math.abs(parseFloat(r.total)||0),
+        vence: r.fecha, corresponde: '—', pagado: r.selected===1||r.selected==='1', real: Math.abs(parseFloat(r.total)||0)
+      }));
+      LS.set('adelanto_manual', ADELANTO_MANUAL);
+    }
+    const manualResult = await api('loadGastos', {mesKey: `MANUAL_${mesKey}`});
+    if(manualResult?.rows?.length) {
+      GASTOS_MANUAL[mesKey] = manualResult.rows.map(r => ({
+        fecha: r.fecha, concepto: r.concepto, importe: Math.abs(parseFloat(r.total)||0)
+      }));
+      LS.set('gastos_manual', GASTOS_MANUAL);
+    }
+
+    // ── Gastos del Excel para ese mes (si no había caché local) ──
+    if(!LS.get(`gastos_${mesKey}`)?.length) {
+      const gastosResult = await api('loadGastos', {mesKey});
+      if(gastosResult?.rows?.length) {
+        const remoteData = gastosResult.rows.map((r,i) => ({
+          id: i, fecha: r.fecha, concepto: r.concepto,
+          total: parseFloat(r.total)||0,
+          selected: r.selected===1||r.selected==='1'||r.selected===true,
+          esProv: r.esProv===1||r.esProv==='1'||r.esProv===true,
+        }));
+        LS.set(`gastos_${mesKey}`, remoteData);
+      }
+    }
+
+    // ── Sobres + IRPF config del mes + Cierre de caja del mes — todo en una sola llamada ──
+    const sobresData = await api('loadSobres');
+    if(sobresData?.sobres) {
+      Object.entries(sobresData.sobres).forEach(([key, checked]) => {
+        const codigo = key.split('|')[0];
+        if(codigo && codigo.startsWith('IRPFREAL_')) {
+          const triKey = codigo.replace('IRPFREAL_', '');
+          try {
+            const val = typeof checked === 'string' ? JSON.parse(checked) : checked;
+            if(val !== null && val !== undefined) IRPF_REAL[triKey] = val;
+          } catch(e) {}
+        } else if(codigo === `IRPFCONFIG_${mesKey}`) {
+          try {
+            const val = typeof checked === 'string' ? JSON.parse(checked) : checked;
+            if(val) IRPF_CONFIG[mesKey] = val;
+          } catch(e) {}
+        } else {
+          // Sobres normales, transferencias y cierre de caja (CIERRE_<año>_<mes>)
+          SOBRES[key] = checked;
+        }
+      });
+      LS.set('sobres', SOBRES);
+      LS.set('irpf_real', IRPF_REAL);
+      LS.set('irpf_config', IRPF_CONFIG);
+    }
+  } catch(e) { console.warn('syncMesActual:', e); }
+
+  // Repintar lo que corresponda según la pestaña activa
   if(curFinTab==='gastos') autoLoadGastosMes();
+  if(curFinTab==='resultado') renderResultado();
+  if(curFinTab==='liquidacion') renderLiquidacion();
+  if(curFinTab==='ingresos') renderIngresosTable();
+  if(curFinTab==='irpf') renderIrpfPage();
 }
 
 // Carga automáticamente los gastos guardados del mes al entrar, sin pulsar botón
@@ -3810,12 +3894,17 @@ function getIrpfImporte(baseConFactura){
   return baseConFactura * cfg.pct;
 }
 
+function saveIrpfConfigBackend(mesKey){
+  api('saveSobre', { items: [{codigo: `IRPFCONFIG_${mesKey}`, concepto: 'irpf_config', checked: JSON.stringify(IRPF_CONFIG[mesKey])}] });
+}
+
 function setIrpfPct(val){
   const key=irpfMesKey();
   if(!IRPF_CONFIG[key]) IRPF_CONFIG[key]={pct:0.20, manual:null};
   IRPF_CONFIG[key].pct=parseFloat(val);
   IRPF_CONFIG[key].manual=null; // al elegir % se desactiva el importe manual
   LS.set('irpf_config', IRPF_CONFIG);
+  saveIrpfConfigBackend(key);
   renderIngresosTable();
   renderResultado();
 }
@@ -3825,6 +3914,7 @@ function setIrpfManual(val){
   if(!IRPF_CONFIG[key]) IRPF_CONFIG[key]={pct:0.20, manual:null};
   IRPF_CONFIG[key].manual = (val==='' ? null : parseFloat(val));
   LS.set('irpf_config', IRPF_CONFIG);
+  saveIrpfConfigBackend(key);
   renderIngresosTable();
   renderResultado();
 }
@@ -3833,6 +3923,7 @@ function clearIrpfManual(){
   const key=irpfMesKey();
   if(IRPF_CONFIG[key]) IRPF_CONFIG[key].manual=null;
   LS.set('irpf_config', IRPF_CONFIG);
+  saveIrpfConfigBackend(key);
   renderIngresosTable();
   renderResultado();
 }
