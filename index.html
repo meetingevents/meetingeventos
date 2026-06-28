@@ -2577,6 +2577,7 @@ function setFinMonth(m){
 async function syncMesActual(){
   if(!BACKEND_URL) { if(curFinTab==='gastos') autoLoadGastosMes(); return; }
   const mesKey = `${finYear}-${String(finMonth+1).padStart(2,'0')}`;
+  mostrarAvisoSync(`Sincronizando ${MN[finMonth]} ${finYear}...`);
 
   try {
     // ── Adelantos fijos del mes ──
@@ -2644,7 +2645,11 @@ async function syncMesActual(){
       LS.set('irpf_real', IRPF_REAL);
       LS.set('irpf_config', IRPF_CONFIG);
     }
-  } catch(e) { console.warn('syncMesActual:', e); }
+  } catch(e) {
+    console.warn('syncMesActual:', e);
+    mostrarAvisoSync(`⚠️ Error al sincronizar: ${e.message}`, true);
+    return;
+  }
 
   // Repintar lo que corresponda según la pestaña activa
   if(curFinTab==='gastos') autoLoadGastosMes();
@@ -2652,6 +2657,26 @@ async function syncMesActual(){
   if(curFinTab==='liquidacion') renderLiquidacion();
   if(curFinTab==='ingresos') renderIngresosTable();
   if(curFinTab==='irpf') renderIrpfPage();
+
+  mostrarAvisoSync(`✓ ${MN[finMonth]} ${finYear} sincronizado`);
+}
+
+// Aviso visual temporal en pantalla — para diagnosticar sin necesitar la consola
+function mostrarAvisoSync(texto, esError){
+  let el = document.getElementById('sync-aviso');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'sync-aviso';
+    el.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:99999;padding:10px 18px;border-radius:10px;font-size:12px;font-weight:700;font-family:Montserrat,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.15);transition:opacity .3s;';
+    document.body.appendChild(el);
+  }
+  el.textContent = texto;
+  el.style.background = esError ? '#fef2f2' : '#f0fdf4';
+  el.style.color = esError ? '#dc2626' : '#00875a';
+  el.style.border = esError ? '1.5px solid #fca5a5' : '1.5px solid #86efac';
+  el.style.opacity = '1';
+  clearTimeout(window._syncAvisoTimeout);
+  window._syncAvisoTimeout = setTimeout(() => { el.style.opacity = '0'; }, esError ? 8000 : 3000);
 }
 
 // Carga automáticamente los gastos guardados del mes al entrar, sin pulsar botón
