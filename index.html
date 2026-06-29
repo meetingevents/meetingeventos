@@ -2691,12 +2691,16 @@ function mostrarAvisoSync(texto, esError){
 }
 
 // Carga automáticamente los gastos guardados del mes al entrar, sin pulsar botón
+let GASTOS_LOADING = false; // true mientras se está cargando un mes — bloquea guardados
+
 async function autoLoadGastosMes(){
+  GASTOS_LOADING = true;
   const key=gastosMesKey();
   const cached=LS.get(`gastos_${key}`);
   if(cached?.length){
     GASTOS_DATA = cached.map((g,i) => ({...g, id: g.id??i}));
     mostrarGastosCargados(gastosMesLabel(), 'este dispositivo');
+    GASTOS_LOADING = false;
     return;
   }
   if(BACKEND_URL){
@@ -2711,10 +2715,12 @@ async function autoLoadGastosMes(){
         }));
         LS.set(`gastos_${key}`, GASTOS_DATA);
         mostrarGastosCargados(gastosMesLabel(), 'Sheets');
+        GASTOS_LOADING = false;
         return;
       }
     }catch(e){ console.warn('autoLoadGastosMes:', e); }
   }
+  GASTOS_LOADING = false;
   // No hay datos guardados para este mes — mostrar zona de subida vacía
   GASTOS_DATA=[];
   document.getElementById('upload-zone-wrapper').style.display='block';
@@ -3322,19 +3328,23 @@ function toggleAllGastos(checked){
 // tanto en LS (instantáneo) como en el backend Sheets (en segundo plano)
 let _persistGastosTimeout=null;
 function persistGastosActuales(){
+  // No guardar nada mientras hay una carga en curso — evita pisar datos reales
+  // con un array todavía vacío por una condición de carrera.
+  if(GASTOS_LOADING) return;
   const mesKey=gastosMesKey();
   LS.set(`gastos_${mesKey}`, GASTOS_DATA);
   // Debounce la llamada al backend para no saturar si el usuario marca varias casillas rápido
   clearTimeout(_persistGastosTimeout);
   // ── Guarda de seguridad ──
   // Capturamos el mesKey y el array en el momento de llamar a esta función.
-  // Si para cuando se dispara el timeout el mes activo ha cambiado, o el array
-  // está vacío (p.ej. por una condición de carrera con autoLoadGastosMes),
-  // NO guardamos — evita borrar datos reales del Sheets sin querer.
+  // Si para cuando se dispara el timeout el mes activo ha cambiado, el array
+  // está vacío, o hay una carga en curso, NO guardamos — evita borrar datos
+  // reales del Sheets sin querer.
   const mesKeySnapshot = mesKey;
   const dataSnapshot = [...GASTOS_DATA];
   _persistGastosTimeout=setTimeout(()=>{
     if(!BACKEND_URL) return;
+    if(GASTOS_LOADING) return; // doble comprobación en el momento de disparar
     if(gastosMesKey() !== mesKeySnapshot) return; // el usuario cambió de mes mientras esperábamos
     if(!dataSnapshot.length) return; // nunca sobreescribir con un array vacío por accidente
     api('saveGastos', {
