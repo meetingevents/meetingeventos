@@ -2553,10 +2553,15 @@ function renderProximos(){
 // ══════════════════════════════════════════════
 // FINANZAS
 // ══════════════════════════════════════════════
-let finYear=2026, finMonth=4; // May 2026 (0-indexed)
+let finYear=TODAY.getFullYear(), finMonth=TODAY.getMonth(); // mes actual real, siempre dinámico
 
 function renderFinanzas(){
-  finYear=+document.getElementById('fin-yr').value;
+  const yrSel=document.getElementById('fin-yr');
+  if(yrSel.dataset.init!=='1'){
+    yrSel.value=String(finYear); // primera vez: refleja el año actual real, no el fijo del HTML
+    yrSel.dataset.init='1';
+  }
+  finYear=+yrSel.value;
   // Build month selector
   const sel=document.getElementById('fin-month-sel');
   sel.innerHTML=MN.map((m,i)=>`<button class="fmb${i===finMonth?' on':''}" onclick="setFinMonth(${i})">${m}</button>`).join('');
@@ -3315,14 +3320,29 @@ function persistGastosActuales(){
   LS.set(`gastos_${mesKey}`, GASTOS_DATA);
   // Debounce la llamada al backend para no saturar si el usuario marca varias casillas rápido
   clearTimeout(_persistGastosTimeout);
+  // ── Guarda de seguridad ──
+  // Capturamos el mesKey y el array en el momento de llamar a esta función.
+  // Si para cuando se dispara el timeout el mes activo ha cambiado, o el array
+  // está vacío (p.ej. por una condición de carrera con autoLoadGastosMes),
+  // NO guardamos — evita borrar datos reales del Sheets sin querer.
+  const mesKeySnapshot = mesKey;
+  const dataSnapshot = [...GASTOS_DATA];
   _persistGastosTimeout=setTimeout(()=>{
-    if(BACKEND_URL){
-      api('saveGastos', {
-        mesKey,
-        rows: GASTOS_DATA.map(g => ({fecha:g.fecha, concepto:g.concepto, total:g.total, selected:g.selected?1:0, esProv:g.esProv?1:0}))
-      });
-    }
+    if(!BACKEND_URL) return;
+    if(gastosMesKey() !== mesKeySnapshot) return; // el usuario cambió de mes mientras esperábamos
+    if(!dataSnapshot.length) return; // nunca sobreescribir con un array vacío por accidente
+    api('saveGastos', {
+      mesKey: mesKeySnapshot,
+      rows: dataSnapshot.map(g => ({fecha:g.fecha, concepto:g.concepto, total:g.total, selected:g.selected?1:0, esProv:g.esProv?1:0}))
+    });
   }, 800);
+}
+
+// Borra explícitamente los gastos de un mes en el Sheets (uso intencional,
+// por ejemplo desde el botón "🗑 Limpiar" — nunca se llama automáticamente)
+function borrarGastosMesBackend(mesKey){
+  if(!BACKEND_URL) return;
+  api('saveGastos', { mesKey, rows: [] });
 }
 
 function renderGastosTable(){
