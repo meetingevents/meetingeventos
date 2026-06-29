@@ -2652,16 +2652,24 @@ async function syncMesActual(){
   if(curFinTab==='ingresos') renderIngresosTable();
   if(curFinTab==='irpf') renderIrpfPage();
 
-  mostrarAvisoSync(`✓ ${MN[finMonth]} ${finYear} sincronizado`);
+  // Mensaje con detalle real de lo recibido — para diagnosticar sin consola
+  const nGastos = LS.get(`gastos_${mesKey}`)?.length || 0;
+  const nAdelantos = Object.keys(ADELANTO_PAGOS).filter(k=>k.startsWith(mesKey)).length;
+  const nSobres = Object.keys(SOBRES).length;
+  const cierreInfo = getCierreCaja();
+  mostrarAvisoSync(`✓ ${MN[finMonth]} ${finYear}: ${nGastos} gastos · ${nAdelantos} adelantos · ${nSobres} sobres tot. · cierre: ${cierreInfo?cierreInfo.estado:'sin decidir'}`);
 }
 
-// Aviso visual temporal en pantalla — para diagnosticar sin necesitar la consola
+// Aviso visual persistente en pantalla — para diagnosticar sin necesitar la consola.
+// Se queda visible hasta que el usuario lo toca, así nunca se pierde el mensaje.
 function mostrarAvisoSync(texto, esError){
   let el = document.getElementById('sync-aviso');
   if(!el){
     el = document.createElement('div');
     el.id = 'sync-aviso';
-    el.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:99999;padding:10px 18px;border-radius:10px;font-size:12px;font-weight:700;font-family:Montserrat,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.15);transition:opacity .3s;';
+    el.style.cssText = 'position:fixed;bottom:20px;right:20px;left:20px;max-width:420px;margin-left:auto;z-index:99999;padding:14px 18px;border-radius:12px;font-size:12px;font-weight:700;font-family:Montserrat,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.2);transition:opacity .3s;cursor:pointer;line-height:1.5;';
+    el.title='Toca para ocultar';
+    el.onclick = () => { el.style.opacity = '0'; };
     document.body.appendChild(el);
   }
   el.textContent = texto;
@@ -2669,8 +2677,10 @@ function mostrarAvisoSync(texto, esError){
   el.style.color = esError ? '#dc2626' : '#00875a';
   el.style.border = esError ? '1.5px solid #fca5a5' : '1.5px solid #86efac';
   el.style.opacity = '1';
+  el.style.display = 'block';
+  // Ya no se autooculta — se queda hasta que el usuario lo toque,
+  // así puede leer con calma el detalle de la sincronización
   clearTimeout(window._syncAvisoTimeout);
-  window._syncAvisoTimeout = setTimeout(() => { el.style.opacity = '0'; }, esError ? 8000 : 3000);
 }
 
 // Carga automáticamente los gastos guardados del mes al entrar, sin pulsar botón
