@@ -1705,65 +1705,71 @@ async function initBackendSync() {
   // Load real-time data from COMISIONES first
   await loadRealtimeData();
   try {
-    // ── Cargar TODO lo guardado en DASHBOARD_SOBRES ──
-    // Esta hoja almacena varios sistemas distintos, diferenciados por prefijo de "concepto":
-    //  - sobres normales:        codigo|c1, codigo|c2...
-    //  - transferencias:         codigo|tr_c1, codigo|tr_c2...
-    //  - cierre de caja:         CIERRE_<año>_<mes> | cierre
-    //  - IRPF real trimestral:   IRPFREAL_<año>-<trim>T | irpf_real
+    // ── Cargar TODO lo guardado en DASHBOARD_SOBRES (sobres, transferencias, ──
+    // cierre de caja, IRPF real trimestral, IRPF config por mes) ──
     const sobresData = await api('loadSobres');
     if(sobresData?.sobres) {
       Object.entries(sobresData.sobres).forEach(([key, checked]) => {
-        // key viene como "codigo|concepto" desde el backend
-        const [codigo, concepto] = key.split('|');
+        const codigo = key.split('|')[0];
         if(codigo && codigo.startsWith('IRPFREAL_')) {
-          // Importe real de IRPF por trimestre
           const triKey = codigo.replace('IRPFREAL_', '');
           try {
             const val = typeof checked === 'string' ? JSON.parse(checked) : checked;
             if(val !== null && val !== undefined) IRPF_REAL[triKey] = val;
           } catch(e) {}
-        } else if(codigo && codigo.startsWith('CIERRE_')) {
-          // Estado de cierre de caja por mes — se queda en SOBRES tal cual (formato JSON string)
-          SOBRES[key] = checked;
+        } else if(codigo && codigo.startsWith('IRPFCONFIG_')) {
+          const mk = codigo.replace('IRPFCONFIG_', '');
+          try {
+            const val = typeof checked === 'string' ? JSON.parse(checked) : checked;
+            if(val) IRPF_CONFIG[mk] = val;
+          } catch(e) {}
         } else {
-          // Sobre normal o transferencia
+          // Sobre normal, transferencia o cierre de caja (CIERRE_<año>_<mes>)
           SOBRES[key] = checked;
         }
       });
       LS.set('sobres', SOBRES);
       LS.set('irpf_real', IRPF_REAL);
+      LS.set('irpf_config', IRPF_CONFIG);
     }
 
-    // ── Cargar configuración IRPF por mes y gastos manuales/adelantos manuales ──
-    // Estos se guardan vía saveGastos con mesKey prefijado, así que los recuperamos
-    // probando los mesKey de los últimos 24 meses (cubre 2 años completos)
-    const mesesAComprobar = [];
-    for(let i=0;i<24;i++){
-      const d = new Date(TODAY.getFullYear(), TODAY.getMonth()-i, 1);
-      mesesAComprobar.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
-    }
-    // Gastos manuales (prefijo MANUAL_) y adelantos manuales (prefijo ADELANTOMANUAL_)
-    for(const mk of mesesAComprobar) {
-      const manualResult = await api('loadGastos', {mesKey: `MANUAL_${mk}`});
-      if(manualResult?.rows?.length) {
-        GASTOS_MANUAL[mk] = manualResult.rows.map(r => ({
-          fecha: r.fecha, concepto: r.concepto, importe: Math.abs(parseFloat(r.total)||0)
-        }));
-      }
-      const adelManualResult = await api('loadGastos', {mesKey: `ADELANTOMANUAL_${mk}`});
-      if(adelManualResult?.rows?.length) {
-        ADELANTO_MANUAL[mk] = adelManualResult.rows.map(r => ({
-          concepto: r.concepto, importe: Math.abs(parseFloat(r.total)||0),
-          vence: r.fecha, corresponde: '—', pagado: r.selected===1||r.selected==='1', real: Math.abs(parseFloat(r.total)||0)
-        }));
-      }
-    }
-    LS.set('gastos_manual', GASTOS_MANUAL);
-    LS.set('adelanto_manual', ADELANTO_MANUAL);
+    // ── Gastos manuales, adelantos manuales y Excel del mes actual ──
+    // En paralelo (Promise.all) en vez de secuencial — mucho más rápido,
+    // solo pedimos el mes actual aquí; el resto de meses se piden bajo demanda
+    // desde syncMesActual() cuando el usuario navega a ellos.
+    const mk = gastosMesKey();
+    const [manualResult, adelManualResult, gastosDelMes, evData, liqData, adelData] = await Promise.all([
+      api('loadGastos', {mesKey: `MANUAL_${mk}`}),
+      api('loadGastos', {mesKey: `ADELANTOMANUAL_${mk}`}),
+      api('loadGastos', {mesKey: mk}),
+      api('loadAllEventos'),
+      api('loadLiquidaciones'),
+      api('loadAdelantos', {mesKey: mk}),
+    ]);
 
-    // Load all event data
-    const evData = await api('loadAllEventos');
+    if(manualResult?.rows?.length) {
+      GASTOS_MANUAL[mk] = manualResult.rows.map(r => ({
+        fecha: r.fecha, concepto: r.concepto, importe: Math.abs(parseFloat(r.total)||0)
+      }));
+      LS.set('gastos_manual', GASTOS_MANUAL);
+    }
+    if(adelManualResult?.rows?.length) {
+      ADELANTO_MANUAL[mk] = adelManualResult.rows.map(r => ({
+        concepto: r.concepto, importe: Math.abs(parseFloat(r.total)||0),
+        vence: r.fecha, corresponde: '—', pagado: r.selected===1||r.selected==='1', real: Math.abs(parseFloat(r.total)||0)
+      }));
+      LS.set('adelanto_manual', ADELANTO_MANUAL);
+    }
+    if(gastosDelMes?.rows?.length) {
+      const remoteData = gastosDelMes.rows.map((r,i) => ({
+        id: i, fecha: r.fecha, concepto: r.concepto,
+        total: parseFloat(r.total)||0,
+        selected: r.selected===1||r.selected==='1'||r.selected===true,
+        esProv: r.esProv===1||r.esProv==='1'||r.esProv===true,
+      }));
+      LS.set(`gastos_${mk}`, remoteData);
+      if(!GASTOS_DATA.length) GASTOS_DATA = remoteData;
+    }
     if(evData?.eventos) {
       Object.entries(evData.eventos).forEach(([codigo, bloques]) => {
         Object.entries(bloques).forEach(([bloque, campos]) => {
@@ -1773,8 +1779,6 @@ async function initBackendSync() {
         });
       });
     }
-    // Load liquidaciones history
-    const liqData = await api('loadLiquidaciones');
     if(liqData?.liquidaciones?.length) {
       LIQ_HISTORY = liqData.liquidaciones.map(r => ({
         who:r.who, mes:r.mes, total:+r.total, cta:+r.cta, ef:+(r.efectivo||0),
@@ -1782,31 +1786,11 @@ async function initBackendSync() {
       }));
       LS.set('liq_history', LIQ_HISTORY);
     }
-    // Load adelantos for current month
-    const adelData = await api('loadAdelantos', {mesKey: `${finYear}-${String(finMonth+1).padStart(2,'0')}`});
     if(adelData?.adelantos) {
-      ADELANTO_PAGOS = {...ADELANTO_PAGOS, ...Object.fromEntries(
-        Object.entries(adelData.adelantos).map(([concepto, v]) => [
-          adelantoKey(finYear, finMonth, concepto), v
-        ])
-      )};
+      Object.entries(adelData.adelantos).forEach(([concepto, v]) => {
+        ADELANTO_PAGOS[adelantoKey(finYear, finMonth, concepto)] = v;
+      });
       LS.set('adelanto_pagos', ADELANTO_PAGOS);
-    }
-    // Cargar también gastos variables (Excel) del mes actual desde el Sheets
-    const gastosDelMes = await api('loadGastos', {mesKey: gastosMesKey()});
-    if(gastosDelMes?.rows?.length) {
-      const remoteData = gastosDelMes.rows.map((r,i) => ({
-        id: i, fecha: r.fecha, concepto: r.concepto,
-        total: parseFloat(r.total)||0,
-        selected: r.selected===1||r.selected==='1'||r.selected===true,
-        esProv: r.esProv===1||r.esProv==='1'||r.esProv===true,
-      }));
-      LS.set(`gastos_${gastosMesKey()}`, remoteData);
-      // Actualizar también la variable en memoria, no solo el caché LS,
-      // y mostrar la tabla directamente si no había datos ya cargados
-      if(!GASTOS_DATA.length) {
-        GASTOS_DATA = remoteData;
-      }
     }
 
     updateBackendBtn('ok');
@@ -2585,8 +2569,16 @@ async function syncMesActual(){
   mostrarAvisoSync(`Sincronizando ${MN[finMonth]} ${finYear}...`);
 
   try {
+    // Todas las llamadas en paralelo — mucho más rápido que una a una
+    const [adelData, adelManualResult, manualResult, gastosResult, sobresData] = await Promise.all([
+      api('loadAdelantos', {mesKey}),
+      api('loadGastos', {mesKey: `ADELANTOMANUAL_${mesKey}`}),
+      api('loadGastos', {mesKey: `MANUAL_${mesKey}`}),
+      api('loadGastos', {mesKey}),
+      api('loadSobres'),
+    ]);
+
     // ── Adelantos fijos del mes ──
-    const adelData = await api('loadAdelantos', {mesKey});
     if(adelData?.adelantos) {
       Object.entries(adelData.adelantos).forEach(([concepto, v]) => {
         ADELANTO_PAGOS[adelantoKey(finYear, finMonth, concepto)] = v;
@@ -2594,8 +2586,7 @@ async function syncMesActual(){
       LS.set('adelanto_pagos', ADELANTO_PAGOS);
     }
 
-    // ── Adelantos manuales y gastos manuales de ese mes concreto ──
-    const adelManualResult = await api('loadGastos', {mesKey: `ADELANTOMANUAL_${mesKey}`});
+    // ── Adelantos manuales de ese mes ──
     if(adelManualResult?.rows?.length) {
       ADELANTO_MANUAL[mesKey] = adelManualResult.rows.map(r => ({
         concepto: r.concepto, importe: Math.abs(parseFloat(r.total)||0),
@@ -2603,7 +2594,8 @@ async function syncMesActual(){
       }));
       LS.set('adelanto_manual', ADELANTO_MANUAL);
     }
-    const manualResult = await api('loadGastos', {mesKey: `MANUAL_${mesKey}`});
+
+    // ── Gastos manuales de ese mes ──
     if(manualResult?.rows?.length) {
       GASTOS_MANUAL[mesKey] = manualResult.rows.map(r => ({
         fecha: r.fecha, concepto: r.concepto, importe: Math.abs(parseFloat(r.total)||0)
@@ -2611,22 +2603,18 @@ async function syncMesActual(){
       LS.set('gastos_manual', GASTOS_MANUAL);
     }
 
-    // ── Gastos del Excel para ese mes (si no había caché local) ──
-    if(!LS.get(`gastos_${mesKey}`)?.length) {
-      const gastosResult = await api('loadGastos', {mesKey});
-      if(gastosResult?.rows?.length) {
-        const remoteData = gastosResult.rows.map((r,i) => ({
-          id: i, fecha: r.fecha, concepto: r.concepto,
-          total: parseFloat(r.total)||0,
-          selected: r.selected===1||r.selected==='1'||r.selected===true,
-          esProv: r.esProv===1||r.esProv==='1'||r.esProv===true,
-        }));
-        LS.set(`gastos_${mesKey}`, remoteData);
-      }
+    // ── Gastos del Excel para ese mes — el Sheets es siempre la fuente de verdad ──
+    if(gastosResult?.rows?.length) {
+      const remoteData = gastosResult.rows.map((r,i) => ({
+        id: i, fecha: r.fecha, concepto: r.concepto,
+        total: parseFloat(r.total)||0,
+        selected: r.selected===1||r.selected==='1'||r.selected===true,
+        esProv: r.esProv===1||r.esProv==='1'||r.esProv===true,
+      }));
+      LS.set(`gastos_${mesKey}`, remoteData);
     }
 
-    // ── Sobres + IRPF config del mes + Cierre de caja del mes — todo en una sola llamada ──
-    const sobresData = await api('loadSobres');
+    // ── Sobres + IRPF config del mes + Cierre de caja del mes ──
     if(sobresData?.sobres) {
       Object.entries(sobresData.sobres).forEach(([key, checked]) => {
         const codigo = key.split('|')[0];
@@ -2636,10 +2624,11 @@ async function syncMesActual(){
             const val = typeof checked === 'string' ? JSON.parse(checked) : checked;
             if(val !== null && val !== undefined) IRPF_REAL[triKey] = val;
           } catch(e) {}
-        } else if(codigo === `IRPFCONFIG_${mesKey}`) {
+        } else if(codigo && codigo.startsWith('IRPFCONFIG_')) {
+          const mk2 = codigo.replace('IRPFCONFIG_', '');
           try {
             const val = typeof checked === 'string' ? JSON.parse(checked) : checked;
-            if(val) IRPF_CONFIG[mesKey] = val;
+            if(val) IRPF_CONFIG[mk2] = val;
           } catch(e) {}
         } else {
           // Sobres normales, transferencias y cierre de caja (CIERRE_<año>_<mes>)
