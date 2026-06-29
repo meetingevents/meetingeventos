@@ -1723,8 +1723,11 @@ async function initBackendSync() {
             const val = typeof checked === 'string' ? JSON.parse(checked) : checked;
             if(val) IRPF_CONFIG[mk] = val;
           } catch(e) {}
+        } else if(codigo && codigo.startsWith('CIERRE_')) {
+          // El cierre de caja se guarda localmente SOLO con el código (sin "|concepto")
+          SOBRES[codigo] = checked;
         } else {
-          // Sobre normal, transferencia o cierre de caja (CIERRE_<año>_<mes>)
+          // Sobre normal o transferencia (codigo|c1, codigo|tr_c1, etc.)
           SOBRES[key] = checked;
         }
       });
@@ -2630,8 +2633,12 @@ async function syncMesActual(){
             const val = typeof checked === 'string' ? JSON.parse(checked) : checked;
             if(val) IRPF_CONFIG[mk2] = val;
           } catch(e) {}
+        } else if(codigo && codigo.startsWith('CIERRE_')) {
+          // El cierre de caja se guarda localmente SOLO con el código (sin "|concepto"),
+          // a diferencia de sobres/transferencias normales que sí llevan el concepto.
+          SOBRES[codigo] = checked;
         } else {
-          // Sobres normales, transferencias y cierre de caja (CIERRE_<año>_<mes>)
+          // Sobres normales y transferencias (codigo|c1, codigo|tr_c1, etc.)
           SOBRES[key] = checked;
         }
       });
