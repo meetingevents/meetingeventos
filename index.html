@@ -1765,7 +1765,7 @@ async function initBackendSync() {
     }
     if(gastosDelMes?.rows?.length) {
       const remoteData = gastosDelMes.rows.map((r,i) => ({
-        id: i, fecha: r.fecha, concepto: r.concepto,
+        id: i, rowId: r.rowId, fecha: r.fecha, concepto: r.concepto,
         total: parseFloat(r.total)||0,
         selected: r.selected===1||r.selected==='1'||r.selected===true,
         esProv: r.esProv===1||r.esProv==='1'||r.esProv===true,
@@ -2609,12 +2609,13 @@ async function syncMesActual(){
     // ── Gastos del Excel para ese mes — el Sheets es siempre la fuente de verdad ──
     if(gastosResult?.rows?.length) {
       const remoteData = gastosResult.rows.map((r,i) => ({
-        id: i, fecha: r.fecha, concepto: r.concepto,
+        id: i, rowId: r.rowId, fecha: r.fecha, concepto: r.concepto,
         total: parseFloat(r.total)||0,
         selected: r.selected===1||r.selected==='1'||r.selected===true,
         esProv: r.esProv===1||r.esProv==='1'||r.esProv===true,
       }));
       LS.set(`gastos_${mesKey}`, remoteData);
+      if(mesKey === gastosMesKey()) GASTOS_DATA = remoteData;
     }
 
     // ── Sobres + IRPF config del mes + Cierre de caja del mes ──
@@ -2696,19 +2697,16 @@ let GASTOS_LOADING = false; // true mientras se está cargando un mes — bloque
 async function autoLoadGastosMes(){
   GASTOS_LOADING = true;
   const key=gastosMesKey();
-  const cached=LS.get(`gastos_${key}`);
-  if(cached?.length){
-    GASTOS_DATA = cached.map((g,i) => ({...g, id: g.id??i}));
-    mostrarGastosCargados(gastosMesLabel(), 'este dispositivo');
-    GASTOS_LOADING = false;
-    return;
-  }
+
+  // El Sheets es SIEMPRE la fuente de verdad cuando hay backend conectado —
+  // así nunca hay diferencias entre dispositivos. El caché local solo se usa
+  // como fallback si no hay conexión.
   if(BACKEND_URL){
     try{
       const result = await api('loadGastos', {mesKey: key});
       if(result?.rows?.length){
         GASTOS_DATA = result.rows.map((r,i) => ({
-          id: i, fecha: r.fecha, concepto: r.concepto,
+          id: i, rowId: r.rowId, fecha: r.fecha, concepto: r.concepto,
           total: parseFloat(r.total)||0,
           selected: r.selected===1||r.selected==='1'||r.selected===true,
           esProv: r.esProv===1||r.esProv==='1'||r.esProv===true,
@@ -2720,6 +2718,16 @@ async function autoLoadGastosMes(){
       }
     }catch(e){ console.warn('autoLoadGastosMes:', e); }
   }
+
+  // Sin backend, o el backend no tiene nada para este mes: usar caché local si existe
+  const cached=LS.get(`gastos_${key}`);
+  if(cached?.length){
+    GASTOS_DATA = cached.map((g,i) => ({...g, id: g.id??i}));
+    mostrarGastosCargados(gastosMesLabel(), 'este dispositivo (sin backend)');
+    GASTOS_LOADING = false;
+    return;
+  }
+
   GASTOS_LOADING = false;
   // No hay datos guardados para este mes — mostrar zona de subida vacía
   GASTOS_DATA=[];
@@ -3284,25 +3292,68 @@ function parseGastosRaw(raw){
   document.getElementById('gastos-table-wrap').style.display='block';
   renderGastosTable();
   updateGastosKPI();
-  // Auto-save to LS and backend
+  // Guardar en LS al instante, y subir al Sheets como ÚNICA operación atómica
+  // (reemplaza limpiamente el mes — nunca duplica porque solo se llama aquí,
+  // al subir el archivo, no en cada cambio de checkbox)
   const mesKey = gastosMesKey();
   LS.set(`gastos_${mesKey}`, GASTOS_DATA);
   const btnGuardar=document.getElementById('btn-guardar-drive');
   if(btnGuardar) btnGuardar.style.display='';
-  setGastosDriveStatus(`${MN[finMonth]} ${finYear} — guardando…`,'var(--orange)');
-  guardarGastosDrive();
+  subirExcelAlSheet();
+}
+
+// Sube el Excel completo al Sheets — UNA SOLA llamada, asigna rowId a cada fila.
+// Esta es la única función que reemplaza el mes completo en el backend.
+async function subirExcelAlSheet(){
+  if(!BACKEND_URL){
+    setGastosDriveStatus(`✓ Guardado en este dispositivo — conecta el backend para sincronizar`,'var(--orange)');
+    return;
+  }
+  const mesKey = gastosMesKey();
+  const label = gastosMesLabel();
+  setGastosDriveStatus(`${label} — subiendo al Sheets…`,'var(--orange)');
+  try {
+    const result = await api('saveGastos', {
+      mesKey,
+      rows: GASTOS_DATA.map(g => ({fecha:g.fecha, concepto:g.concepto, total:g.total, selected:g.selected?1:0, esProv:g.esProv?1:0}))
+    });
+    if(result){
+      // Recargar inmediatamente desde el Sheets para obtener los rowId asignados
+      const fresh = await api('loadGastos', {mesKey});
+      if(fresh?.rows?.length){
+        GASTOS_DATA = fresh.rows.map((r,i) => ({
+          id: i, rowId: r.rowId, fecha: r.fecha, concepto: r.concepto,
+          total: parseFloat(r.total)||0,
+          selected: r.selected===1||r.selected==='1'||r.selected===true,
+          esProv: r.esProv===1||r.esProv==='1'||r.esProv===true,
+        }));
+        LS.set(`gastos_${mesKey}`, GASTOS_DATA);
+        renderGastosTable();
+        updateGastosKPI();
+      }
+      setGastosDriveStatus(`✓ ${label} guardado en Sheets — disponible desde cualquier dispositivo`,'var(--green)');
+    } else {
+      setGastosDriveStatus(`✓ Guardado local (${label}) — el backend no respondió`,'var(--orange)');
+    }
+  } catch(err){
+    setGastosDriveStatus(`✓ Guardado local (${label}) — error: ${err.message}`, 'var(--orange)');
+    console.warn('subirExcelAlSheet:', err);
+  }
 }
 
 function filterGastos(){
   renderGastosTable();
 }
 
+// ── Toggles atómicos por rowId ──
+// Cada cambio actualiza SOLO esa fila en el Sheets, vía toggleGastoFila().
+// Nunca se reenvía el array completo del mes, así que es imposible duplicar.
 function toggleGastoRow(id, checked){
   const g=GASTOS_DATA.find(g=>g.id===id);
   if(g){ g.selected=checked; if(!checked) g.esProv=false; }
   updateGastosFooter();
   updateGastosKPI();
-  persistGastosActuales();
+  persistGastoIndividual(g);
 }
 
 function toggleGastoProv(id, checked){
@@ -3310,48 +3361,31 @@ function toggleGastoProv(id, checked){
   if(g) g.esProv=checked;
   updateGastosFooter();
   updateGastosKPI();
-  persistGastosActuales();
+  persistGastoIndividual(g);
 }
 
 function toggleAllGastos(checked){
   const q=(document.getElementById('gastos-search').value||'').toLowerCase();
+  const afectados=[];
   GASTOS_DATA.forEach(g=>{
     const matchQ=!q||g.concepto.toLowerCase().includes(q)||g.categoria.toLowerCase().includes(q);
-    if(matchQ&&g.total<0) g.selected=checked;
+    if(matchQ&&g.total<0){ g.selected=checked; afectados.push(g); }
   });
   renderGastosTable();
   updateGastosKPI();
-  persistGastosActuales();
+  afectados.forEach(g=>persistGastoIndividual(g));
 }
 
-// Guarda el estado actual de selección/proveedor cada vez que cambia algo,
-// tanto en LS (instantáneo) como en el backend Sheets (en segundo plano)
-let _persistGastosTimeout=null;
-function persistGastosActuales(){
-  // No guardar nada mientras hay una carga en curso — evita pisar datos reales
-  // con un array todavía vacío por una condición de carrera.
-  if(GASTOS_LOADING) return;
+// Guarda en LS al instante + actualiza UNA fila concreta en el Sheets por su rowId.
+// Si la fila todavía no tiene rowId (p.ej. justo después de subir el Excel y antes
+// de que termine subirExcelAlSheet), solo guarda en LS — se sincronizará bien
+// en cuanto termine la subida inicial.
+function persistGastoIndividual(g){
+  if(!g) return;
   const mesKey=gastosMesKey();
   LS.set(`gastos_${mesKey}`, GASTOS_DATA);
-  // Debounce la llamada al backend para no saturar si el usuario marca varias casillas rápido
-  clearTimeout(_persistGastosTimeout);
-  // ── Guarda de seguridad ──
-  // Capturamos el mesKey y el array en el momento de llamar a esta función.
-  // Si para cuando se dispara el timeout el mes activo ha cambiado, el array
-  // está vacío, o hay una carga en curso, NO guardamos — evita borrar datos
-  // reales del Sheets sin querer.
-  const mesKeySnapshot = mesKey;
-  const dataSnapshot = [...GASTOS_DATA];
-  _persistGastosTimeout=setTimeout(()=>{
-    if(!BACKEND_URL) return;
-    if(GASTOS_LOADING) return; // doble comprobación en el momento de disparar
-    if(gastosMesKey() !== mesKeySnapshot) return; // el usuario cambió de mes mientras esperábamos
-    if(!dataSnapshot.length) return; // nunca sobreescribir con un array vacío por accidente
-    api('saveGastos', {
-      mesKey: mesKeySnapshot,
-      rows: dataSnapshot.map(g => ({fecha:g.fecha, concepto:g.concepto, total:g.total, selected:g.selected?1:0, esProv:g.esProv?1:0}))
-    });
-  }, 800);
+  if(!BACKEND_URL || !g.rowId) return;
+  api('toggleGastoFila', { rowId: g.rowId, selected: g.selected, esProv: g.esProv });
 }
 
 // Borra explícitamente los gastos de un mes en el Sheets (uso intencional,
@@ -3806,32 +3840,7 @@ function setGastosDriveStatus(msg, color='var(--grey-text)'){
 
 async function guardarGastosDrive(){
   if(!GASTOS_DATA.length){ alert('No hay gastos cargados para guardar.'); return; }
-  const key=gastosMesKey();
-  const label=gastosMesLabel();
-  setGastosDriveStatus('💾 Guardando…','var(--orange)');
-
-  // Siempre guardar en LS (caché local instantánea, funciona sin backend)
-  LS.set(`gastos_${key}`, GASTOS_DATA);
-
-  if(!BACKEND_URL){
-    setGastosDriveStatus(`✓ Guardado en este dispositivo (${label}) — conecta el backend para sincronizar entre ordenadores`,'var(--orange)');
-    return;
-  }
-
-  try {
-    const backendResult = await api('saveGastos', {
-      mesKey: key,
-      rows: GASTOS_DATA.map(g => ({fecha:g.fecha, concepto:g.concepto, total:g.total, selected:g.selected?1:0, esProv:g.esProv?1:0}))
-    });
-    if(backendResult) {
-      setGastosDriveStatus(`✓ Guardado en Sheets (${label}) — disponible desde cualquier ordenador`,'var(--green)');
-    } else {
-      setGastosDriveStatus(`✓ Guardado local (${label}) — el backend no respondió`,'var(--orange)');
-    }
-  } catch(err){
-    setGastosDriveStatus(`✓ Guardado local (${label}) — error backend: ${err.message}`, 'var(--orange)');
-    console.warn('saveGastos backend failed:', err);
-  }
+  await subirExcelAlSheet();
 }
 
 async function cargarGastosDrive(){
@@ -3839,36 +3848,35 @@ async function cargarGastosDrive(){
   const label=gastosMesLabel();
   setGastosDriveStatus('☁️ Cargando…','var(--blue)');
 
-  // 1. Caché local (LS ya devuelve el objeto parseado, no JSON.parse de nuevo)
+  // El Sheets es siempre la fuente de verdad, igual que en autoLoadGastosMes
+  if(BACKEND_URL){
+    try{
+      const result = await api('loadGastos', {mesKey: key});
+      if(result?.rows?.length) {
+        GASTOS_DATA = result.rows.map((r,i) => ({
+          id: i, rowId: r.rowId, fecha: r.fecha, concepto: r.concepto,
+          total: parseFloat(r.total)||0,
+          selected: r.selected===1||r.selected==='1'||r.selected===true,
+          esProv: r.esProv===1||r.esProv==='1'||r.esProv===true,
+        }));
+        LS.set(`gastos_${key}`, GASTOS_DATA);
+        mostrarGastosCargados(label, 'Sheets');
+        return;
+      }
+    }catch(err){
+      setGastosDriveStatus(`Error: ${err.message}`,'var(--red)');
+      return;
+    }
+  }
+
+  // Sin backend, o sin datos en el Sheets: caché local como fallback
   const cached=LS.get(`gastos_${key}`);
   if(cached?.length){
     GASTOS_DATA = cached.map((g,i) => ({...g, id: g.id??i}));
     mostrarGastosCargados(label, 'este dispositivo');
     return;
   }
-
-  // 2. Backend (Sheets) — para cuando se abre desde otro ordenador
-  if(!BACKEND_URL){
-    setGastosDriveStatus(`Sin datos guardados para ${label} en este dispositivo`,'var(--grey-text)');
-    return;
-  }
-  try{
-    const result = await api('loadGastos', {mesKey: key});
-    if(result?.rows?.length) {
-      GASTOS_DATA = result.rows.map((r,i) => ({
-        id: i, fecha: r.fecha, concepto: r.concepto,
-        total: parseFloat(r.total)||0,
-        selected: r.selected===1||r.selected==='1'||r.selected===true,
-        esProv: r.esProv===1||r.esProv==='1'||r.esProv===true,
-      }));
-      LS.set(`gastos_${key}`, GASTOS_DATA);
-      mostrarGastosCargados(label, 'Sheets');
-    } else {
-      setGastosDriveStatus(`Sin datos guardados para ${label}`,'var(--grey-text)');
-    }
-  }catch(err){
-    setGastosDriveStatus(`Error: ${err.message}`,'var(--red)');
-  }
+  setGastosDriveStatus(`Sin datos guardados para ${label}`,'var(--grey-text)');
 }
 
 function mostrarGastosCargados(label, fuente){
