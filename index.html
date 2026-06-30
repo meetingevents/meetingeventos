@@ -1157,41 +1157,43 @@ tr:hover td{background:var(--blue-glass);}
           </div>
         </div>
 
-        <!-- GASTOS VARIABLES (Excel/CSV) -->
+        <!-- GASTOS VARIABLES DEL MES — Excel → Gastos_dashboard -->
         <div class="card">
           <div class="ch">
             <div class="ct"><div class="cdot r"></div>Gastos variables del mes</div>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-              <span id="gastos-drive-status" style="font-size:10px;font-weight:600;color:var(--grey-text)"></span>
-              <button class="btn ghost" id="btn-cargar-drive" onclick="cargarGastosDrive()" style="font-size:10px;padding:6px 12px;display:none;">
-                ☁️ Cargar desde Drive
-              </button>
-              <button class="btn" id="btn-guardar-drive" onclick="guardarGastosDrive()" style="font-size:10px;padding:6px 12px;background:var(--green);display:none;">
-                💾 Guardar en Drive
-              </button>
+              <span id="gd-sync-status" style="font-size:10px;font-weight:600;color:var(--grey-text)"></span>
+              <button class="btn ghost" onclick="gdCargar()" style="font-size:10px;padding:6px 12px;">☁️ Cargar desde Sheets</button>
+              <button class="btn" onclick="gdGuardar()" style="font-size:10px;padding:6px 12px;background:var(--green)">💾 Guardar en Sheets</button>
               <button class="btn ghost" onclick="document.getElementById('gastos-file').click()" style="font-size:10px;padding:6px 12px;">📂 Subir Excel / CSV</button>
-              <input type="file" id="gastos-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleGastosFile(event)">
+              <input type="file" id="gastos-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="gdHandleFile(event)">
             </div>
           </div>
-          <div id="upload-zone-wrapper">
-            <div class="upload-zone" id="upload-zone" onclick="document.getElementById('gastos-file').click()"
+          <div id="gd-file-info" style="padding:6px 20px;font-size:10px;font-weight:600;color:var(--grey-text);min-height:22px;border-bottom:1px solid var(--grey-2);"></div>
+          <div id="gd-drop-wrap">
+            <div class="upload-zone" id="upload-zone"
+              onclick="document.getElementById('gastos-file').click()"
               ondragover="event.preventDefault();this.classList.add('drag')"
               ondragleave="this.classList.remove('drag')"
-              ondrop="handleDrop(event)">
+              ondrop="gdHandleDrop(event)">
               <div class="up-ico">📊</div>
-              <div class="up-title">Arrastra aquí tu archivo de gastos</div>
+              <div class="up-title">Arrastra aquí tu extracto bancario</div>
               <div class="up-sub">Excel (.xlsx, .xls) o CSV — columnas: Fecha, Concepto, Importe</div>
+              <div style="margin-top:12px;font-size:10px;color:var(--blue);font-weight:700;background:var(--blue-pale);padding:6px 14px;border-radius:20px;display:inline-block;">
+                Se guarda en <strong>Gastos_dashboard</strong> del Sheets · sincronizado en todos los dispositivos
+              </div>
             </div>
           </div>
-          <div id="gastos-table-wrap" style="display:none;">
-            <div style="padding:12px 16px;display:flex;gap:8px;align-items:center;border-bottom:1px solid var(--grey-2);">
+          <div id="gd-table-wrap" style="display:none;">
+            <div style="padding:12px 16px;display:flex;gap:8px;align-items:center;border-bottom:1px solid var(--grey-2);flex-wrap:wrap;">
               <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 8px;background:var(--grey-1);border-radius:6px;border:1.5px solid var(--grey-2);">
-                <input type="checkbox" id="gastos-select-all" onchange="toggleAllGastos(this.checked)"
+                <input type="checkbox" id="gastos-select-all" onchange="gdToggleAll(this.checked)"
                   style="width:14px;height:14px;accent-color:var(--red);cursor:pointer">
                 <span style="font-size:10px;font-weight:700;color:var(--grey-text)">Selec. todos</span>
               </label>
-              <input type="text" placeholder="Buscar concepto…" id="gastos-search" oninput="filterGastos()" style="max-width:220px;font-size:11px;padding:6px 10px;">
-              <button class="btn ghost" onclick="clearGastos()" style="font-size:10px;padding:6px 12px;">🗑 Limpiar</button>
+              <input type="text" placeholder="Buscar concepto…" id="gastos-search" oninput="gdRenderTable()"
+                style="max-width:220px;font-size:11px;padding:6px 10px;">
+              <button class="btn ghost" onclick="gdLimpiar()" style="font-size:10px;padding:6px 12px;">🗑 Limpiar</button>
               <span class="badge grey" id="gastos-count" style="margin-left:auto;"></span>
             </div>
             <div class="twrap">
@@ -1205,6 +1207,9 @@ tr:hover td{background:var(--blue-glass);}
               </table>
             </div>
             <div style="padding:12px 20px;background:var(--grey-1);border-top:1px solid var(--grey-2);display:flex;gap:24px;flex-wrap:wrap;" id="gastos-footer"></div>
+            <div style="padding:10px 20px 14px;background:var(--blue-pale);border-top:1px solid var(--grey-2);font-size:10px;font-weight:600;color:var(--blue);">
+              ☁️ Pulsa <strong>"Guardar en Sheets"</strong> para sincronizar con <strong>Gastos_dashboard</strong> y leer desde cualquier dispositivo.
+            </div>
           </div>
         </div>
 
@@ -1764,14 +1769,12 @@ async function initBackendSync() {
       LS.set('adelanto_manual', ADELANTO_MANUAL);
     }
     if(gastosDelMes?.rows?.length) {
-      const remoteData = gastosDelMes.rows.map((r,i) => ({
+      GD_DATA = gastosDelMes.rows.map((r,i) => ({
         id: i, rowId: r.rowId, fecha: r.fecha, concepto: r.concepto,
         total: parseFloat(r.total)||0,
         selected: r.selected===1||r.selected==='1'||r.selected===true,
         esProv: r.esProv===1||r.esProv==='1'||r.esProv===true,
       }));
-      LS.set(`gastos_${mk}`, remoteData);
-      if(!GASTOS_DATA.length) GASTOS_DATA = remoteData;
     }
     if(evData?.eventos) {
       Object.entries(evData.eventos).forEach(([codigo, bloques]) => {
@@ -1805,8 +1808,8 @@ async function initBackendSync() {
         renderAdelanto();
         renderGastosManualTable();
         if(GASTOS_DATA.length){
-          document.getElementById('upload-zone-wrapper').style.display='none';
-          document.getElementById('gastos-table-wrap').style.display='block';
+          document.getElementById('gd-drop-wrap').style.display='none';
+          document.getElementById('gd-table-wrap').style.display='block';
           renderGastosTable();
         }
         updateGastosKPI();
@@ -2376,7 +2379,9 @@ recalcTotals();
 
 
 // ── GASTOS STATE
-let GASTOS_DATA = [];
+let GD_DATA = [];
+// alias para compatibilidad con renderResultado/renderLiquidacion
+Object.defineProperty(window,"GASTOS_DATA",{get:()=>GD_DATA,set:v=>{GD_DATA=v;},configurable:true});
 // ── LIQUIDACION STATE
 let LIQ_HISTORY = [];
 
@@ -2692,54 +2697,8 @@ function mostrarAvisoSync(texto, esError){
 }
 
 // Carga automáticamente los gastos guardados del mes al entrar, sin pulsar botón
-let GASTOS_LOADING = false; // true mientras se está cargando un mes — bloquea guardados
-
-async function autoLoadGastosMes(){
-  GASTOS_LOADING = true;
-  const key=gastosMesKey();
-
-  // El Sheets es SIEMPRE la fuente de verdad cuando hay backend conectado —
-  // así nunca hay diferencias entre dispositivos. El caché local solo se usa
-  // como fallback si no hay conexión.
-  if(BACKEND_URL){
-    try{
-      const result = await api('loadGastos', {mesKey: key});
-      if(result?.rows?.length){
-        GASTOS_DATA = result.rows.map((r,i) => ({
-          id: i, rowId: r.rowId, fecha: r.fecha, concepto: r.concepto,
-          total: parseFloat(r.total)||0,
-          selected: r.selected===1||r.selected==='1'||r.selected===true,
-          esProv: r.esProv===1||r.esProv==='1'||r.esProv===true,
-        }));
-        LS.set(`gastos_${key}`, GASTOS_DATA);
-        mostrarGastosCargados(gastosMesLabel(), 'Sheets');
-        GASTOS_LOADING = false;
-        return;
-      }
-    }catch(e){ console.warn('autoLoadGastosMes:', e); }
-  }
-
-  // Sin backend, o el backend no tiene nada para este mes: usar caché local si existe
-  const cached=LS.get(`gastos_${key}`);
-  if(cached?.length){
-    GASTOS_DATA = cached.map((g,i) => ({...g, id: g.id??i}));
-    mostrarGastosCargados(gastosMesLabel(), 'este dispositivo (sin backend)');
-    GASTOS_LOADING = false;
-    return;
-  }
-
-  GASTOS_LOADING = false;
-  // No hay datos guardados para este mes — mostrar zona de subida vacía
-  GASTOS_DATA=[];
-  document.getElementById('upload-zone-wrapper').style.display='block';
-  document.getElementById('gastos-table-wrap').style.display='none';
-  document.getElementById('fin-kpi-gastos').innerHTML='';
-  setGastosDriveStatus('','var(--grey-text)');
-  const btnGuardar=document.getElementById('btn-guardar-drive');
-  if(btnGuardar) btnGuardar.style.display='none';
-  const btnCargar=document.getElementById('btn-cargar-drive');
-  if(btnCargar) btnCargar.style.display='none';
-}
+// autoLoadGastosMes → definida en módulo GD
+function autoLoadGastosMes(){ return gdAutoLoad(); }
 
 function getFinData(){
   return D.filter(d=>getYear(d.fe)===finYear&&getMonth(d.fe)===finMonth);
@@ -3189,758 +3148,232 @@ function renderIngresosTable(){
 }
 
 // ── GASTOS TAB
-function handleGastosFile(e){
-  const file=e.target.files[0];
-  if(!file)return;
-  readGastosFile(file);
-}
-function handleDrop(e){
-  e.preventDefault();
-  document.getElementById('upload-zone').classList.remove('drag');
-  const file=e.dataTransfer.files[0];
-  if(file) readGastosFile(file);
-}
-function readGastosFile(file){
-  const reader=new FileReader();
-  reader.onload=function(ev){
-    const wb=XLSX.read(ev.target.result,{type:'binary'});
-    const ws=wb.Sheets[wb.SheetNames[0]];
-    const raw=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
-    parseGastosRaw(raw);
+// ════════════════════════════════════════════════════════════════
+// MÓDULO GASTOS VARIABLES v2.0 — Excel → Gastos_dashboard (Sheets)
+// ════════════════════════════════════════════════════════════════
+
+function gdHandleFile(e)  { const f=e.target.files[0]; if(f) gdReadFile(f); }
+function gdHandleDrop(e)  { e.preventDefault(); document.getElementById('upload-zone').classList.remove('drag'); const f=e.dataTransfer.files[0]; if(f) gdReadFile(f); }
+// aliases para el HTML antiguo que llama handleGastosFile / handleDrop
+function handleGastosFile(e) { gdHandleFile(e); }
+function handleDrop(e)        { gdHandleDrop(e); }
+
+function gdReadFile(file) {
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const wb  = XLSX.read(ev.target.result, { type:'binary' });
+    const ws  = wb.Sheets[wb.SheetNames[0]];
+    const raw = XLSX.utils.sheet_to_json(ws, { header:1, defval:'' });
+    gdParseRaw(raw, file.name);
   };
   reader.readAsBinaryString(file);
 }
-function parseGastosRaw(raw){
-  if(!raw||raw.length<2)return;
-  // Find header row — look for keywords
-  let hdr=0;
-  for(let i=0;i<Math.min(5,raw.length);i++){
-    const r=raw[i].join(' ').toLowerCase();
-    if(r.includes('concepto')||r.includes('importe')||r.includes('fecha')) {hdr=i;break;}
+
+function gdParseRaw(raw, filename) {
+  if (!raw || raw.length < 2) return;
+  let hdr = 0;
+  for (let i=0; i<Math.min(6,raw.length); i++) {
+    const r = raw[i].join(' ').toLowerCase();
+    if (r.includes('concepto')||r.includes('descripci')||r.includes('importe')||r.includes('fecha')) { hdr=i; break; }
   }
-  const headers=raw[hdr].map(h=>String(h).toLowerCase().trim());
-  const colFecha=headers.findIndex(h=>h.includes('fecha'));
-  const colConcepto=headers.findIndex(h=>h.includes('concepto')||h.includes('descripci'));
-  const colCat=headers.findIndex(h=>h.includes('categ')||h.includes('tipo'));
-  const colImporte=headers.findIndex(h=>h.includes('importe')||h.includes('base'));
-  const colIva=headers.findIndex(h=>h.includes('iva'));
-  const colTotal=headers.findIndex(h=>h.includes('total')||h.includes('bruto'));
-  const allRows=[];
-  for(let i=hdr+1;i<raw.length;i++){
-    const row=raw[i];
-    if(!row||row.every(c=>c===''||c===null))continue;
-    const parseNum=v=>{
-      if(v===''||v===null||v===undefined)return null;
-      let s=String(v).trim();
-      // Remove currency symbols and letters (EUR, €, $, etc.)
-      s=s.replace(/[A-Za-z€$£]/g,'').trim();
-      if(s==='')return null;
-      // Detect European format: has dot as thousands sep + comma as decimal
-      // e.g. -1.248,00 → -1248.00
-      // vs US format: -1,248.00 → -1248.00
-      const hasComma=s.includes(',');
-      const hasDot=s.includes('.');
-      if(hasComma&&hasDot){
-        // whichever comes last is the decimal separator
-        const lastComma=s.lastIndexOf(',');
-        const lastDot=s.lastIndexOf('.');
-        if(lastComma>lastDot){
-          // European: dot=thousands, comma=decimal → -1.248,00
-          s=s.replace(/\./g,'').replace(',','.');
-        } else {
-          // US: comma=thousands, dot=decimal → -1,248.00
-          s=s.replace(/,/g,'');
-        }
-      } else if(hasComma&&!hasDot){
-        // Only comma — could be decimal (European simple: -1248,00)
-        // If comma followed by exactly 2-3 digits at end → decimal
-        s=s.replace(',','.');
-      }
-      // Now s should be parseable as a float
-      const n=parseFloat(s);
-      return isNaN(n)?null:n;
-    };
-    // Try all numeric columns to find a negative value
-    const importe=parseNum(colImporte>=0?row[colImporte]:null);
-    const iva=parseNum(colIva>=0?row[colIva]:null);
-    const totalRaw=parseNum(colTotal>=0?row[colTotal]:null);
-    // Determine the "main" amount — prefer explicit total/importe column
-    // If no column matches, scan all cells for a negative number
-    let amount=totalRaw!==null?totalRaw:(importe!==null?importe:0);
-    if(amount===0){
-      // scan all cells for first numeric value
-      for(const cell of row){
-        const n=parseNum(cell);
-        if(n!==null&&n!==0){amount=n;break;}
-      }
-    }
-    const g={
-      id:i,
-      fecha:colFecha>=0?String(row[colFecha]):'',
-      concepto:colConcepto>=0?String(row[colConcepto]):'',
-      categoria:colCat>=0&&row[colCat]?String(row[colCat]):'Otro',
-      importe:importe||0,
-      iva:iva||0,
-      total:amount,
-      selected:amount<0  // pre-select negatives
-    };
-    if(g.concepto||g.total!==0) allRows.push(g);
-  }
-  // GASTOS_DATA holds ALL rows; rendering will filter to negatives only
-  GASTOS_DATA=allRows;
-  document.getElementById('upload-zone-wrapper').style.display='none';
-  document.getElementById('gastos-table-wrap').style.display='block';
-  renderGastosTable();
-  updateGastosKPI();
-  // Guardar en LS al instante, y subir al Sheets como ÚNICA operación atómica
-  // (reemplaza limpiamente el mes — nunca duplica porque solo se llama aquí,
-  // al subir el archivo, no en cada cambio de checkbox)
-  const mesKey = gastosMesKey();
-  LS.set(`gastos_${mesKey}`, GASTOS_DATA);
-  const btnGuardar=document.getElementById('btn-guardar-drive');
-  if(btnGuardar) btnGuardar.style.display='';
-  subirExcelAlSheet();
-}
+  const headers    = raw[hdr].map(h => String(h).toLowerCase().trim());
+  const colFecha    = headers.findIndex(h => h.includes('fecha'));
+  const colConcepto = headers.findIndex(h => h.includes('concepto')||h.includes('descripci'));
+  const colImporte  = headers.findIndex(h => h.includes('importe')||h.includes('base'));
+  const colTotal    = headers.findIndex(h => h.includes('total')||h.includes('bruto'));
 
-// Sube el Excel completo al Sheets — UNA SOLA llamada, asigna rowId a cada fila.
-// Esta es la única función que reemplaza el mes completo en el backend.
-async function subirExcelAlSheet(){
-  if(!BACKEND_URL){
-    setGastosDriveStatus(`✓ Guardado en este dispositivo — conecta el backend para sincronizar`,'var(--orange)');
-    return;
-  }
-  const mesKey = gastosMesKey();
-  const label = gastosMesLabel();
-  setGastosDriveStatus(`${label} — subiendo al Sheets…`,'var(--orange)');
-  try {
-    const result = await api('saveGastos', {
-      mesKey,
-      rows: GASTOS_DATA.map(g => ({fecha:g.fecha, concepto:g.concepto, total:g.total, selected:g.selected?1:0, esProv:g.esProv?1:0}))
-    });
-    if(result){
-      // Recargar inmediatamente desde el Sheets para obtener los rowId asignados
-      const fresh = await api('loadGastos', {mesKey});
-      if(fresh?.rows?.length){
-        GASTOS_DATA = fresh.rows.map((r,i) => ({
-          id: i, rowId: r.rowId, fecha: r.fecha, concepto: r.concepto,
-          total: parseFloat(r.total)||0,
-          selected: r.selected===1||r.selected==='1'||r.selected===true,
-          esProv: r.esProv===1||r.esProv==='1'||r.esProv===true,
-        }));
-        LS.set(`gastos_${mesKey}`, GASTOS_DATA);
-        renderGastosTable();
-        updateGastosKPI();
-      }
-      setGastosDriveStatus(`✓ ${label} guardado en Sheets — disponible desde cualquier dispositivo`,'var(--green)');
-    } else {
-      setGastosDriveStatus(`✓ Guardado local (${label}) — el backend no respondió`,'var(--orange)');
-    }
-  } catch(err){
-    setGastosDriveStatus(`✓ Guardado local (${label}) — error: ${err.message}`, 'var(--orange)');
-    console.warn('subirExcelAlSheet:', err);
-  }
-}
+  const parseNum = v => {
+    if (v===''||v===null||v===undefined) return null;
+    let s = String(v).trim().replace(/[A-Za-z€$£]/g,'').trim();
+    if (!s) return null;
+    const hasComma=s.includes(','), hasDot=s.includes('.');
+    if (hasComma&&hasDot) s = s.lastIndexOf(',')>s.lastIndexOf('.') ? s.replace(/\./g,'').replace(',','.') : s.replace(/,/g,'');
+    else if (hasComma&&!hasDot) s = s.replace(',','.');
+    const n=parseFloat(s); return isNaN(n)?null:n;
+  };
 
-function filterGastos(){
-  renderGastosTable();
-}
-
-// ── Toggles atómicos por rowId ──
-// Cada cambio actualiza SOLO esa fila en el Sheets, vía toggleGastoFila().
-// Nunca se reenvía el array completo del mes, así que es imposible duplicar.
-function toggleGastoRow(id, checked){
-  const g=GASTOS_DATA.find(g=>g.id===id);
-  if(g){ g.selected=checked; if(!checked) g.esProv=false; }
-  updateGastosFooter();
-  updateGastosKPI();
-  persistGastoIndividual(g);
-}
-
-function toggleGastoProv(id, checked){
-  const g=GASTOS_DATA.find(g=>g.id===id);
-  if(g) g.esProv=checked;
-  updateGastosFooter();
-  updateGastosKPI();
-  persistGastoIndividual(g);
-}
-
-function toggleAllGastos(checked){
-  const q=(document.getElementById('gastos-search').value||'').toLowerCase();
-  const afectados=[];
-  GASTOS_DATA.forEach(g=>{
-    const matchQ=!q||g.concepto.toLowerCase().includes(q)||g.categoria.toLowerCase().includes(q);
-    if(matchQ&&g.total<0){ g.selected=checked; afectados.push(g); }
-  });
-  renderGastosTable();
-  updateGastosKPI();
-  afectados.forEach(g=>persistGastoIndividual(g));
-}
-
-// Guarda en LS al instante + actualiza UNA fila concreta en el Sheets por su rowId.
-// Si la fila todavía no tiene rowId (p.ej. justo después de subir el Excel y antes
-// de que termine subirExcelAlSheet), solo guarda en LS — se sincronizará bien
-// en cuanto termine la subida inicial.
-function persistGastoIndividual(g){
-  if(!g) return;
-  const mesKey=gastosMesKey();
-  LS.set(`gastos_${mesKey}`, GASTOS_DATA);
-  if(!BACKEND_URL || !g.rowId) return;
-  api('toggleGastoFila', { rowId: g.rowId, selected: g.selected, esProv: g.esProv });
-}
-
-// Borra explícitamente los gastos de un mes en el Sheets (uso intencional,
-// por ejemplo desde el botón "🗑 Limpiar" — nunca se llama automáticamente)
-function borrarGastosMesBackend(mesKey){
-  if(!BACKEND_URL) return;
-  api('saveGastos', { mesKey, rows: [] });
-}
-
-function renderGastosTable(){
-  const q=(document.getElementById('gastos-search')?.value||'').toLowerCase();
-  const visible=GASTOS_DATA.filter(g=>{
-    const isNeg=g.total<0;
-    const matchQ=!q||g.concepto.toLowerCase().includes(q)||g.categoria.toLowerCase().includes(q);
-    return isNeg&&matchQ;
-  });
-  const allSelected=visible.length>0&&visible.every(g=>g.selected);
-  document.getElementById('gastos-count').textContent=visible.length+' gastos negativos';
-  const fmtNeg=v=>'− '+Math.abs(v).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
-  const rows=visible.map(g=>{
-    let rowBg='opacity:.5';
-    if(g.selected&&g.esProv) rowBg='background:rgba(124,58,237,0.05)';
-    else if(g.selected) rowBg='background:rgba(220,38,38,0.04)';
-    return `<tr style="${rowBg}">
-    <td style="width:36px;text-align:center">
-      <input type="checkbox" ${g.selected?'checked':''} onchange="toggleGastoRow(${g.id},this.checked)"
-        style="width:15px;height:15px;accent-color:var(--red);cursor:pointer">
-    </td>
-    <td style="font-size:10px;color:var(--grey-text);white-space:nowrap">${g.fecha}</td>
-    <td style="font-weight:${g.selected?'700':'400'}">${g.concepto}</td>
-    <td class="cb" style="color:${g.esProv?'var(--purple)':'var(--red)'};font-weight:700;white-space:nowrap">${fmtNeg(g.total)}</td>
-    <td style="width:110px;text-align:center">
-      ${g.selected?`<label style="display:flex;align-items:center;gap:5px;cursor:pointer;justify-content:center">
-        <input type="checkbox" ${g.esProv?'checked':''} onchange="toggleGastoProv(${g.id},this.checked)"
-          style="width:13px;height:13px;accent-color:var(--purple);cursor:pointer">
-        <span style="font-size:9px;font-weight:700;color:${g.esProv?'var(--purple)':'var(--grey-text)'}">${g.esProv?'Proveedor':'Marcar'}</span>
-      </label>`:'<span style="font-size:9px;color:var(--grey-2)">—</span>'}
-    </td>
-  </tr>`;}).join('');
-  document.getElementById('gastos-tbody').innerHTML=rows||
-    '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--grey-text);font-size:11px">No hay importes negativos en el archivo</td></tr>';
-  const allChk=document.getElementById('gastos-select-all');
-  if(allChk) allChk.checked=allSelected;
-  updateGastosFooter();
-}
-
-function updateGastosFooter(){
-  const selected=GASTOS_DATA.filter(g=>g.selected&&g.total<0);
-  const gastosPropios=selected.filter(g=>!g.esProv);
-  const gastosProvs=selected.filter(g=>g.esProv);
-  const totalPropios=Math.abs(gastosPropios.reduce((a,g)=>a+g.total,0));
-  const totalProvs=Math.abs(gastosProvs.reduce((a,g)=>a+g.total,0));
-  const totalAdelanto=getTotalAdelanto();
-  const totalReal=totalPropios+totalAdelanto;
-  document.getElementById('gastos-footer').innerHTML=`
-    <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:center;width:100%">
-      <div style="display:flex;flex-direction:column;gap:3px">
-        <span style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--grey-text)">Gastos propios seleccionados</span>
-        <span style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;color:var(--red)">− ${totalPropios.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})} €</span>
-        <span style="font-size:10px;color:var(--grey-text)">${gastosPropios.length} movimientos</span>
-      </div>
-      <div style="font-size:20px;color:var(--grey-2)">+</div>
-      <div style="display:flex;flex-direction:column;gap:3px">
-        <span style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--grey-text)">Adelanto gastos fijos</span>
-        <span style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;color:var(--orange)">− ${totalAdelanto.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})} €</span>
-        <span style="font-size:10px;color:var(--grey-text)">3 conceptos fijos</span>
-      </div>
-      <div style="font-size:20px;color:var(--grey-2)">=</div>
-      <div style="display:flex;flex-direction:column;gap:3px;background:var(--red-bg);padding:10px 16px;border-radius:10px;border:1.5px solid #fca5a5">
-        <span style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--red)">Total gastos reales</span>
-        <span style="font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:800;color:var(--red)">− ${totalReal.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})} €</span>
-      </div>
-      ${totalProvs>0?`
-      <div style="display:flex;flex-direction:column;gap:3px;margin-left:auto;background:var(--purple-bg);padding:10px 16px;border-radius:10px;border:1.5px solid #c4b5fd">
-        <span style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--purple)">Pagos a proveedores (aparte)</span>
-        <span style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;color:var(--purple)">− ${totalProvs.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})} €</span>
-        <span style="font-size:10px;color:var(--purple)">${gastosProvs.length} mov. · no computan en gastos</span>
-      </div>`:''}
-      <div style="margin-left:${totalProvs>0?'0':'auto'};font-size:10px;color:var(--grey-text);align-self:flex-end">
-        ${GASTOS_DATA.filter(g=>g.total>=0).length} mov. positivos ocultos
-      </div>
-    </div>
-  `;
-}
-// ── ADELANTO GASTOS FIJOS ──────────────────────────────────────────
-// 3 gastos fijos que se adelantan cada mes para el mes siguiente
-const GASTOS_FIJOS = [
-  {
-    concepto: 'Cuota Autónomos',
-    importe: 302.60,
-    dia: 30,
-    mesesDesfase: 1, // vence el día 30 del mes siguiente al que se aparta
-    descripcion: 'Se carga el día 30 del mes siguiente (Seguridad Social)'
-  },
-  {
-    concepto: 'Google Ads · Anuncio Locales',
-    importe: 312.00,
-    dia: 5,
-    mesesDesfase: 2, // si apartas en enero, la factura llega el 05/03 (corresponde a febrero)
-    descripcion: 'Factura el día 5, dos meses después de apartarlo (ej: apartado en enero → factura 05/03, corresponde a febrero)'
-  },
-  {
-    concepto: 'Gestoría (Horus Firm SL)',
-    importe: 78.59,
-    dia: 18,
-    mesesDesfase: 1, // vence el día 18 del mes siguiente
-    descripcion: 'Se pasa el día 18 del mes siguiente'
-  }
-];
-
-// State: paid amounts entered by user per (year-month-concepto)
-let ADELANTO_PAGOS = LS.get('adelanto_pagos') || {};
-
-function adelantoKey(year, month, concepto) {
-  return `${year}-${month}-${concepto}`;
-}
-
-// ── ADELANTOS MANUALES (extra, introducidos a mano) ──
-// Guardados por mes: { "2026-06": [{concepto, importe, vence, corresponde, pagado, real}, ...] }
-let ADELANTO_MANUAL = LS.get('adelanto_manual') || {};
-
-function adelantoManualMesKey(){ return `${finYear}-${String(finMonth+1).padStart(2,'0')}`; }
-function getAdelantoManualMes(){ return ADELANTO_MANUAL[adelantoManualMesKey()] || []; }
-
-function saveAdelantoManual(){
-  LS.set('adelanto_manual', ADELANTO_MANUAL);
-  const key=adelantoManualMesKey();
-  api('saveGastos', {
-    mesKey: 'ADELANTOMANUAL_'+key,
-    rows: (ADELANTO_MANUAL[key]||[]).map(a=>({fecha:a.vence, concepto:a.concepto, total:-Math.abs(a.real||a.importe), selected:1, esProv:0}))
-  });
-}
-
-function toggleAdelantoManualForm(){
-  const form=document.getElementById('adelanto-manual-form');
-  form.style.display = form.style.display==='none' ? 'block' : 'none';
-}
-
-function addAdelantoManual(){
-  const concepto=document.getElementById('am-concepto').value.trim();
-  const importe=parseFloat(document.getElementById('am-importe').value);
-  const venceRaw=document.getElementById('am-vence').value;
-  const corresponde=document.getElementById('am-corresponde').value.trim();
-  const pagado=document.getElementById('am-pagado').value==='1';
-  const realInput=parseFloat(document.getElementById('am-real').value);
-
-  if(!concepto){ alert('Indica el concepto.'); return; }
-  if(!importe || importe<=0){ alert('Indica un importe válido.'); return; }
-
-  let vence='';
-  if(venceRaw){ const [y,m,d]=venceRaw.split('-'); vence=`${d}/${m}/${y}`; }
-
-  const key=adelantoManualMesKey();
-  if(!ADELANTO_MANUAL[key]) ADELANTO_MANUAL[key]=[];
-  ADELANTO_MANUAL[key].push({
-    concepto, importe, vence, corresponde: corresponde||'—',
-    pagado, real: realInput||importe
-  });
-  saveAdelantoManual();
-
-  // Limpiar formulario
-  document.getElementById('am-concepto').value='';
-  document.getElementById('am-importe').value='';
-  document.getElementById('am-vence').value='';
-  document.getElementById('am-corresponde').value='';
-  document.getElementById('am-pagado').value='0';
-  document.getElementById('am-real').value='';
-  toggleAdelantoManualForm();
-
-  renderAdelanto();
-  updateGastosKPI();
-}
-
-function deleteAdelantoManual(idx){
-  const key=adelantoManualMesKey();
-  if(!ADELANTO_MANUAL[key]) return;
-  ADELANTO_MANUAL[key].splice(idx,1);
-  saveAdelantoManual();
-  renderAdelanto();
-  updateGastosKPI();
-}
-
-function toggleAdelantoManualPagado(idx, checked){
-  const key=adelantoManualMesKey();
-  if(!ADELANTO_MANUAL[key]?.[idx]) return;
-  ADELANTO_MANUAL[key][idx].pagado=checked;
-  saveAdelantoManual();
-  renderAdelanto();
-  updateGastosKPI();
-}
-
-function setAdelantoManualReal(idx, val){
-  const key=adelantoManualMesKey();
-  if(!ADELANTO_MANUAL[key]?.[idx]) return;
-  ADELANTO_MANUAL[key][idx].real=parseFloat(val)||ADELANTO_MANUAL[key][idx].importe;
-  saveAdelantoManual();
-  updateGastosKPI();
-}
-
-function renderAdelanto() {
-  // El mes "al que corresponde" el gasto sigue siendo el mes siguiente para todos
-  // (es la etiqueta de a qué mes pertenece el gasto, no cuándo se paga)
-  const nextMonth = finMonth === 11 ? 0 : finMonth + 1;
-  const nextYear  = finMonth === 11 ? finYear + 1 : finYear;
-  const badge = document.getElementById('adelanto-mes-badge');
-  if(badge) badge.textContent = `Para ${MN[nextMonth]} ${nextYear}`;
-
-  let totalAdelanto = 0;
-  let totalRealPagado = 0;
-
-  const rows = GASTOS_FIJOS.map(gf => {
-    const key = adelantoKey(finYear, finMonth, gf.concepto);
-    const pagado = parseFloat(ADELANTO_PAGOS[key]?.pagado||0);
-    const realImporte = parseFloat(ADELANTO_PAGOS[key]?.real||0) || gf.importe;
-    const checked = ADELANTO_PAGOS[key]?.pagado > 0;
-    totalAdelanto += gf.importe;
-    totalRealPagado += realImporte;
-
-    // Vencimiento real: día X, sumando el desfase de meses propio de cada concepto
-    // Ej: Google Ads con mesesDesfase=2 → si apartas en enero, vence en marzo (05/03)
-    const desfase = gf.mesesDesfase || 1;
-    let venceMonth = finMonth + desfase;
-    let venceYear = finYear;
-    while(venceMonth > 11){ venceMonth -= 12; venceYear += 1; }
-    const vence = `${String(gf.dia).padStart(2,'0')}/${String(venceMonth+1).padStart(2,'0')}/${venceYear}`;
-
-    return `<tr>
-      <td>
-        <div style="font-weight:700;font-size:11px">${gf.concepto}</div>
-        <div style="font-size:9px;color:var(--grey-text);margin-top:2px">${gf.descripcion}</div>
-      </td>
-      <td><span style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:var(--orange)">${fmt(gf.importe)}</span></td>
-      <td><span style="font-size:10px;font-weight:700;background:var(--orange-bg);color:var(--orange);padding:2px 8px;border-radius:4px">${vence}</span></td>
-      <td><span style="font-size:10px;font-weight:600;color:var(--grey-text)">${MN[nextMonth]} ${nextYear}</span></td>
-      <td>
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;font-weight:600">
-          <input type="checkbox" onchange="adelantoSetPagado('${key}', this.checked, ${gf.importe})"
-            ${checked?'checked':''} style="width:15px;height:15px;accent-color:var(--green)">
-          <span style="color:${checked?'var(--green)':'var(--grey-text)'}">${checked?'✓ Apartado':'Pendiente'}</span>
-        </label>
-      </td>
-      <td>
-        <input type="number" value="${ADELANTO_PAGOS[key]?.real||gf.importe}"
-          onchange="adelantoSetReal('${key}', this.value)"
-          style="width:90px;padding:5px 8px;border:1.5px solid var(--grey-2);border-radius:6px;font-size:11px;font-family:'Montserrat',sans-serif;font-weight:700"
-          step="0.01" min="0">
-      </td>
-    </tr>`;
-  }).join('');
-
-  // ── Filas extra: adelantos manuales del mes ──
-  const manuales=getAdelantoManualMes();
-  const manualRows = manuales.map((am, idx) => {
-    totalAdelanto += am.importe;
-    totalRealPagado += (am.real || am.importe);
-    return `<tr style="background:var(--purple-bg);">
-      <td>
-        <div style="font-weight:700;font-size:11px">${am.concepto} <span style="font-size:8px;background:var(--purple);color:#fff;padding:1px 6px;border-radius:8px;margin-left:4px;">MANUAL</span></div>
-      </td>
-      <td><span style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:var(--purple)">${fmt(am.importe)}</span></td>
-      <td><span style="font-size:10px;font-weight:700;background:#ede9fe;color:var(--purple);padding:2px 8px;border-radius:4px">${am.vence||'—'}</span></td>
-      <td><span style="font-size:10px;font-weight:600;color:var(--grey-text)">${am.corresponde}</span></td>
-      <td>
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;font-weight:600">
-          <input type="checkbox" onchange="toggleAdelantoManualPagado(${idx}, this.checked)"
-            ${am.pagado?'checked':''} style="width:15px;height:15px;accent-color:var(--green)">
-          <span style="color:${am.pagado?'var(--green)':'var(--grey-text)'}">${am.pagado?'✓ Apartado':'Pendiente'}</span>
-        </label>
-      </td>
-      <td style="display:flex;align-items:center;gap:6px;">
-        <input type="number" value="${am.real||am.importe}"
-          onchange="setAdelantoManualReal(${idx}, this.value)"
-          style="width:90px;padding:5px 8px;border:1.5px solid var(--grey-2);border-radius:6px;font-size:11px;font-family:'Montserrat',sans-serif;font-weight:700"
-          step="0.01" min="0">
-        <button onclick="deleteAdelantoManual(${idx})" title="Eliminar" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:14px;">🗑</button>
-      </td>
-    </tr>`;
-  }).join('');
-
-  document.getElementById('adelanto-tbody').innerHTML = rows + manualRows;
-  document.getElementById('adelanto-tfoot').innerHTML = `
-    <tr style="background:var(--grey-1);font-weight:800;border-top:2px solid var(--grey-2)">
-      <td style="padding:10px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;">TOTAL A APARTAR</td>
-      <td style="padding:10px 12px;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:var(--orange)">${fmt(totalAdelanto)}</td>
-      <td colspan="2"></td>
-      <td style="padding:10px 12px;font-size:10px;color:var(--grey-text);font-weight:700">
-        ${Object.values(ADELANTO_PAGOS).filter(v=>v.pagado>0).length>0?'<span style="color:var(--green)">✓ '+Object.keys(ADELANTO_PAGOS).filter(k=>k.startsWith(finYear+'-'+finMonth)&&ADELANTO_PAGOS[k]?.pagado>0).length+'/3 apartados</span>':'0/3 apartados'}
-      </td>
-      <td style="padding:10px 12px;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:var(--black)">${fmt(totalRealPagado)}</td>
-    </tr>`;
-}
-
-function adelantoSetPagado(key, checked, importe) {
-  if(!ADELANTO_PAGOS[key]) ADELANTO_PAGOS[key] = {};
-  ADELANTO_PAGOS[key].pagado = checked ? importe : 0;
-  LS.set('adelanto_pagos', ADELANTO_PAGOS);
-  // Save to backend
-  const _mk = gastosMesKey();
-  const _ak = {};
-  GASTOS_FIJOS.forEach(gf => {
-    const _k = adelantoKey(finYear, finMonth, gf.concepto);
-    if(ADELANTO_PAGOS[_k]) _ak[gf.concepto] = ADELANTO_PAGOS[_k];
-  });
-  if(Object.keys(_ak).length) api('saveAdelantos', {mesKey: _mk, adelantos: _ak});
-  renderAdelanto();
-  updateGastosKPI();
-}
-
-function adelantoSetReal(key, val) {
-  if(!ADELANTO_PAGOS[key]) ADELANTO_PAGOS[key] = {};
-  ADELANTO_PAGOS[key].real = parseFloat(val)||0;
-  LS.set('adelanto_pagos', ADELANTO_PAGOS);
-  // Save to backend
-  const _mk = gastosMesKey();
-  const _ak = {};
-  GASTOS_FIJOS.forEach(gf => {
-    const _k = adelantoKey(finYear, finMonth, gf.concepto);
-    if(ADELANTO_PAGOS[_k]) _ak[gf.concepto] = ADELANTO_PAGOS[_k];
-  });
-  if(Object.keys(_ak).length) api('saveAdelantos', {mesKey: _mk, adelantos: _ak});
-  updateGastosKPI();
-}
-
-function getTotalAdelanto() {
-  const fijos = GASTOS_FIJOS.reduce((a, gf) => {
-    const key = adelantoKey(finYear, finMonth, gf.concepto);
-    return a + (parseFloat(ADELANTO_PAGOS[key]?.real||0) || gf.importe);
-  }, 0);
-  const manuales = getAdelantoManualMes().reduce((a, am) => a + (parseFloat(am.real)||am.importe), 0);
-  return fijos + manuales;
-}
-// ──────────────────────────────────────────────────────────────────
-
-// ── GASTOS EN EFECTIVO — INTRODUCCIÓN MANUAL ──
-// Guardados por mes: { "2026-06": [{fecha, concepto, importe}, ...], ... }
-let GASTOS_MANUAL = LS.get('gastos_manual') || {};
-
-function gastosManualMesKey(){ return `${finYear}-${String(finMonth+1).padStart(2,'0')}`; }
-
-function getGastosManualMes(){
-  return GASTOS_MANUAL[gastosManualMesKey()] || [];
-}
-
-function saveGastosManual(){
-  const key=gastosManualMesKey();
-  LS.set('gastos_manual', GASTOS_MANUAL);
-  api('saveGastos', {
-    mesKey: 'MANUAL_'+key,
-    rows: (GASTOS_MANUAL[key]||[]).map(g=>({fecha:g.fecha, concepto:g.concepto, total:-Math.abs(g.importe), selected:1, esProv:0}))
-  });
-}
-
-function addGastoManual(){
-  const fecha=document.getElementById('gm-fecha').value;
-  const concepto=document.getElementById('gm-concepto').value.trim();
-  const importe=parseFloat(document.getElementById('gm-importe').value);
-
-  if(!fecha){ alert('Indica la fecha del gasto.'); return; }
-  if(!concepto){ alert('Indica el concepto del gasto.'); return; }
-  if(!importe || importe<=0){ alert('Indica un importe válido.'); return; }
-
-  const key=gastosManualMesKey();
-  if(!GASTOS_MANUAL[key]) GASTOS_MANUAL[key]=[];
-  // Convertir fecha de yyyy-mm-dd (input date) a dd/mm/yyyy para consistencia visual
-  const [y,m,d]=fecha.split('-');
-  GASTOS_MANUAL[key].push({fecha:`${d}/${m}/${y}`, concepto, importe});
-  saveGastosManual();
-
-  document.getElementById('gm-fecha').value='';
-  document.getElementById('gm-concepto').value='';
-  document.getElementById('gm-importe').value='';
-
-  renderGastosManualTable();
-  updateGastosKPI();
-}
-
-function deleteGastoManual(idx){
-  const key=gastosManualMesKey();
-  if(!GASTOS_MANUAL[key]) return;
-  GASTOS_MANUAL[key].splice(idx,1);
-  saveGastosManual();
-  renderGastosManualTable();
-  updateGastosKPI();
-}
-
-function renderGastosManualTable(){
-  const tbody=document.getElementById('gastos-manual-tbody');
-  if(!tbody) return;
-  const items=getGastosManualMes();
-
-  document.getElementById('gastos-manual-count').textContent=items.length+' gastos';
-
-  if(!items.length){
-    tbody.innerHTML='<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--grey-text);font-size:11px">Sin gastos en efectivo añadidos este mes</td></tr>';
-  } else {
-    tbody.innerHTML=items.map((g,i)=>`<tr>
-      <td style="font-size:11px;color:var(--grey-text)">${g.fecha}</td>
-      <td style="font-weight:600;font-size:12px">${g.concepto}</td>
-      <td class="cb" style="color:var(--orange);font-weight:700">${fmt(g.importe)}</td>
-      <td style="text-align:center"><button onclick="deleteGastoManual(${i})" title="Eliminar" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:14px;">🗑</button></td>
-    </tr>`).join('');
+  const rows = [];
+  for (let i=hdr+1; i<raw.length; i++) {
+    const row = raw[i];
+    if (!row||row.every(c=>c===''||c===null)) continue;
+    const totalRaw   = parseNum(colTotal  >=0 ? row[colTotal]   : null);
+    const importeRaw = parseNum(colImporte>=0 ? row[colImporte] : null);
+    let amount = totalRaw!==null ? totalRaw : (importeRaw!==null ? importeRaw : 0);
+    if (amount===0) { for (const cell of row) { const n=parseNum(cell); if(n!==null&&n!==0){amount=n;break;} } }
+    const fecha    = colFecha    >=0 ? String(row[colFecha]   ||'').trim() : '';
+    const concepto = colConcepto >=0 ? String(row[colConcepto]||'').trim() : '';
+    if (!concepto && amount===0) continue;
+    rows.push({ id:i, fecha, concepto, total:amount, selected:amount<0, esProv:false });
   }
 
-  const total=items.reduce((a,g)=>a+g.importe,0);
-  document.getElementById('gastos-manual-total').textContent=fmt(total);
+  GD_DATA = rows;
+  const info = document.getElementById('gd-file-info');
+  if (info) info.textContent = `📄 ${filename} · ${rows.filter(r=>r.total<0).length} gastos negativos de ${rows.length} filas totales`;
+  document.getElementById('gd-drop-wrap').style.display  = 'none';
+  document.getElementById('gd-table-wrap').style.display = 'block';
+  gdRenderTable();
+  updateGastosKPI();
 }
 
-function getTotalGastosManual(){
-  return getGastosManualMes().reduce((a,g)=>a+g.importe,0);
-}
-
-function updateGastosKPI(){
-  const propios=GASTOS_DATA.filter(g=>g.selected&&g.total<0&&!g.esProv);
-  const provs=GASTOS_DATA.filter(g=>g.selected&&g.total<0&&g.esProv);
-  const totalVariables=Math.abs(propios.reduce((a,g)=>a+g.total,0));
-  const totalProvs=Math.abs(provs.reduce((a,g)=>a+g.total,0));
-  const totalAdelanto=getTotalAdelanto();
-  const totalManual=getTotalGastosManual();
-  const totalGastos=totalVariables+totalAdelanto+totalManual;
-  const ingresos=MONTHLY_TOTALS[finYear]?.[finMonth]||0;
-  document.getElementById('fin-kpi-gastos').innerHTML=`
-    <div class="kpi o"><span class="kico">📅</span><div class="kl">Adelanto gastos fijos</div><div class="kv" style="color:var(--orange)">${fmt(totalAdelanto)}</div><div class="ks">3 conceptos fijos</div></div>
-    <div class="kpi r"><span class="kico">📤</span><div class="kl">Gastos propios</div><div class="kv" style="color:var(--red)">${fmt(totalVariables)}</div><div class="ks">${propios.length} seleccionados</div></div>
-    ${totalManual>0?`<div class="kpi o"><span class="kico">💵</span><div class="kl">Gastos efectivo (manual)</div><div class="kv" style="color:var(--orange)">${fmt(totalManual)}</div><div class="ks">${getGastosManualMes().length} registros</div></div>`:''}
-    <div class="kpi r" style="border-top-color:var(--red)"><span class="kico">🧾</span><div class="kl">Total gastos reales</div><div class="kv" style="color:var(--red)">${fmt(totalGastos)}</div><div class="ks">fijos + variables + manual</div></div>
-    <div class="kpi b"><span class="kico">💰</span><div class="kl">Ingresos ${MN[finMonth]}</div><div class="kv bl">${fmt(ingresos)}</div></div>
-    <div class="kpi g"><span class="kico">📈</span><div class="kl">Resultado bruto</div><div class="kv">${fmt(ingresos-totalGastos)}</div><div class="ks">antes de IRPF</div></div>
-    ${totalProvs>0?`<div class="kpi p"><span class="kico">🤝</span><div class="kl">Pagos proveedores</div><div class="kv" style="color:var(--purple)">${fmt(totalProvs)}</div><div class="ks">no computan en gastos</div></div>`:''}
-  `;
-}
-function clearGastos(){
-  GASTOS_DATA=[];
-  document.getElementById('upload-zone-wrapper').style.display='block';
-  document.getElementById('gastos-table-wrap').style.display='none';
-  document.getElementById('gastos-file').value='';
+function gdLimpiar() {
+  GD_DATA=[];
+  document.getElementById('gd-drop-wrap').style.display  = 'block';
+  document.getElementById('gd-table-wrap').style.display = 'none';
+  const info=document.getElementById('gd-file-info'); if(info) info.textContent='';
+  const fi=document.getElementById('gastos-file'); if(fi) fi.value='';
   document.getElementById('fin-kpi-gastos').innerHTML='';
-  setGastosDriveStatus('');
-  document.getElementById('btn-guardar-drive').style.display='none';
+  gdSyncStatus('','');
 }
 
-// ── GOOGLE DRIVE SAVE / LOAD ──────────────────────────────────────
-// Sheet ID created in Drive: MEETING EVENTOS · Gastos Variables Dashboard
-const GASTOS_SHEET_ID = '19YrLrilpo7Yl9-NatrinyBKPEEu4aWp75ngCnTX7M0g';
-
-function gastosMesKey(){ return `${finYear}-${String(finMonth+1).padStart(2,'0')}`; }
-function gastosMesLabel(){ return `${MN[finMonth]} ${finYear}`; }
-
-function setGastosDriveStatus(msg, color='var(--grey-text)'){
-  const el=document.getElementById('gastos-drive-status');
-  if(el){ el.textContent=msg; el.style.color=color; }
+function gdRenderTable() {
+  const q = (document.getElementById('gastos-search')?.value||'').toLowerCase();
+  const visible = GD_DATA.filter(g => g.total<0 && (!q||g.concepto.toLowerCase().includes(q)||(g.fecha||'').toLowerCase().includes(q)));
+  const allSel  = visible.length>0 && visible.every(g=>g.selected);
+  const selAll  = document.getElementById('gastos-select-all'); if(selAll) selAll.checked=allSel;
+  const selCount = visible.filter(g=>g.selected).length;
+  const countEl = document.getElementById('gastos-count'); if(countEl) countEl.textContent=`${selCount} / ${visible.length} seleccionados`;
+  const fmtNeg = v => `− ${Math.abs(v).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})} €`;
+  const tbody = document.getElementById('gastos-tbody'); if(!tbody) return;
+  tbody.innerHTML = visible.map(g => {
+    let bg='';
+    if(g.selected&&g.esProv) bg='background:rgba(124,58,237,0.05)';
+    else if(g.selected)      bg='background:rgba(220,38,38,0.04)';
+    else                     bg='opacity:.5';
+    return `<tr style="${bg}">
+      <td style="width:36px;text-align:center;padding:8px"><input type="checkbox" ${g.selected?'checked':''} onchange="gdToggle(${g.id},this.checked)" style="width:15px;height:15px;accent-color:var(--red);cursor:pointer"></td>
+      <td style="font-size:10px;color:var(--grey-text);white-space:nowrap;padding:8px 12px">${g.fecha}</td>
+      <td style="font-weight:${g.selected?'700':'400'};padding:8px 12px">${g.concepto}</td>
+      <td style="font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;color:${g.esProv?'var(--purple)':'var(--red)'};white-space:nowrap;padding:8px 12px">${fmtNeg(g.total)}</td>
+      <td style="width:110px;text-align:center;padding:8px 12px">${g.selected?`<label style="display:flex;align-items:center;gap:5px;cursor:pointer;justify-content:center"><input type="checkbox" ${g.esProv?'checked':''} onchange="gdToggleProv(${g.id},this.checked)" style="width:13px;height:13px;accent-color:var(--purple);cursor:pointer"><span style="font-size:9px;font-weight:700;color:${g.esProv?'var(--purple)':'var(--grey-text)'}">${g.esProv?'Proveedor':'Marcar'}</span></label>`:'<span style="font-size:9px;color:var(--grey-2)">—</span>'}</td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--grey-text);font-size:11px">No hay importes negativos en el archivo</td></tr>';
+  gdRenderFooter();
 }
 
-async function guardarGastosDrive(){
-  if(!GASTOS_DATA.length){ alert('No hay gastos cargados para guardar.'); return; }
-  await subirExcelAlSheet();
+function gdToggle(id, checked) {
+  const g=GD_DATA.find(g=>g.id===id); if(g){g.selected=checked; if(!checked)g.esProv=false;}
+  gdRenderTable(); updateGastosKPI();
+  // Toggle atómico en Sheets (si tiene rowId ya asignado)
+  if(g?.rowId) api('toggleGastosDashboardFila',{rowId:g.rowId,selected:g.selected,esProv:g.esProv});
+}
+function gdToggleProv(id, checked) {
+  const g=GD_DATA.find(g=>g.id===id); if(g) g.esProv=checked;
+  gdRenderTable(); updateGastosKPI();
+  if(g?.rowId) api('toggleGastosDashboardFila',{rowId:g.rowId,selected:g.selected,esProv:g.esProv});
+}
+function gdToggleAll(checked) {
+  const q=(document.getElementById('gastos-search')?.value||'').toLowerCase();
+  GD_DATA.forEach(g=>{ if(g.total<0&&(!q||g.concepto.toLowerCase().includes(q))){g.selected=checked; if(!checked)g.esProv=false;} });
+  gdRenderTable(); updateGastosKPI();
 }
 
-async function cargarGastosDrive(){
-  const key=gastosMesKey();
-  const label=gastosMesLabel();
-  setGastosDriveStatus('☁️ Cargando…','var(--blue)');
+function gdRenderFooter() {
+  const el=document.getElementById('gastos-footer'); if(!el) return;
+  const propios=GD_DATA.filter(g=>g.selected&&g.total<0&&!g.esProv);
+  const provs  =GD_DATA.filter(g=>g.selected&&g.total<0&&g.esProv);
+  const totalPropios=Math.abs(propios.reduce((a,g)=>a+g.total,0));
+  const totalProvs  =Math.abs(provs.reduce((a,g)=>a+g.total,0));
+  const totalAdelanto=getTotalAdelanto?getTotalAdelanto():0;
+  const totalManual  =getTotalGastosManual?getTotalGastosManual():0;
+  const totalGastos  =totalPropios+totalAdelanto+totalManual;
+  el.innerHTML=`
+    <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:center;width:100%">
+      <div><div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--grey-text)">Gastos propios seleccionados</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;color:var(--red)">− ${totalPropios.toLocaleString('es-ES',{minimumFractionDigits:2})} €</div><div style="font-size:10px;color:var(--grey-text)">${propios.length} movimientos</div></div>
+      <div style="font-size:20px;color:var(--grey-2)">+</div>
+      <div><div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--grey-text)">Adelanto gastos fijos</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;color:var(--orange)">− ${totalAdelanto.toLocaleString('es-ES',{minimumFractionDigits:2})} €</div><div style="font-size:10px;color:var(--grey-text)">3 conceptos fijos</div></div>
+      <div style="font-size:20px;color:var(--grey-2)">=</div>
+      <div style="background:var(--red-bg);padding:10px 16px;border-radius:10px;border:1.5px solid #fca5a5"><div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--red)">Total gastos reales</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:800;color:var(--red)">− ${totalGastos.toLocaleString('es-ES',{minimumFractionDigits:2})} €</div></div>
+      ${totalProvs>0?`<div style="margin-left:auto;background:var(--purple-bg);padding:10px 16px;border-radius:10px;border:1.5px solid #c4b5fd"><div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--purple)">Pagos proveedores (aparte)</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;color:var(--purple)">− ${totalProvs.toLocaleString('es-ES',{minimumFractionDigits:2})} €</div><div style="font-size:10px;color:var(--purple)">${provs.length} mov. · no computan</div></div>`:''}
+    </div>`;
+}
 
-  // El Sheets es siempre la fuente de verdad, igual que en autoLoadGastosMes
-  if(BACKEND_URL){
-    try{
-      const result = await api('loadGastos', {mesKey: key});
-      if(result?.rows?.length) {
-        GASTOS_DATA = result.rows.map((r,i) => ({
-          id: i, rowId: r.rowId, fecha: r.fecha, concepto: r.concepto,
-          total: parseFloat(r.total)||0,
-          selected: r.selected===1||r.selected==='1'||r.selected===true,
-          esProv: r.esProv===1||r.esProv==='1'||r.esProv===true,
-        }));
-        LS.set(`gastos_${key}`, GASTOS_DATA);
-        mostrarGastosCargados(label, 'Sheets');
-        return;
+async function gdGuardar() {
+  if (!GD_DATA.length) { alert('No hay gastos cargados para guardar.'); return; }
+  if (!BACKEND_URL)    { alert('Conecta el backend primero (botón ⚙️).'); return; }
+  gdSyncStatus('💾 Guardando en Gastos_dashboard...','var(--blue)');
+  const mesKey = gastosMesKey();
+  try {
+    const result = await api('saveGastosDashboard', {
+      mesKey,
+      rows: GD_DATA.map(g => ({fecha:g.fecha,concepto:g.concepto,total:g.total,selected:g.selected?1:0,esProv:g.esProv?1:0}))
+    });
+    if (result) {
+      gdSyncStatus(`✓ ${gastosMesLabel()} guardado · ${GD_DATA.filter(g=>g.selected&&g.total<0).length} gastos seleccionados · disponible desde todos los dispositivos`,'var(--green)');
+      // Recargar para obtener rowIds asignados por el Sheets
+      const fresh = await api('loadGastosDashboard',{mesKey});
+      if (fresh?.rows?.length) {
+        GD_DATA = fresh.rows.map((r,i) => ({id:i,rowId:r.rowId,fecha:r.fecha,concepto:r.concepto,total:parseFloat(r.total)||0,selected:r.selected===1||r.selected==='1'||r.selected===true,esProv:r.esProv===1||r.esProv==='1'||r.esProv===true}));
+        gdRenderTable(); updateGastosKPI();
       }
-    }catch(err){
-      setGastosDriveStatus(`Error: ${err.message}`,'var(--red)');
+    } else { gdSyncStatus('⚠️ Backend sin respuesta','var(--orange)'); }
+  } catch(err) { gdSyncStatus(`⚠️ Error: ${err.message}`,'var(--red)'); }
+}
+
+async function gdCargar() {
+  if (!BACKEND_URL) { alert('Conecta el backend primero (botón ⚙️).'); return; }
+  gdSyncStatus('☁️ Cargando desde Gastos_dashboard...','var(--blue)');
+  const mesKey = gastosMesKey();
+  try {
+    const result = await api('loadGastosDashboard',{mesKey});
+    if (result?.rows?.length) {
+      GD_DATA = result.rows.map((r,i) => ({id:i,rowId:r.rowId,fecha:r.fecha,concepto:r.concepto,total:parseFloat(r.total)||0,selected:r.selected===1||r.selected==='1'||r.selected===true,esProv:r.esProv===1||r.esProv==='1'||r.esProv===true}));
+      document.getElementById('gd-drop-wrap').style.display  = 'none';
+      document.getElementById('gd-table-wrap').style.display = 'block';
+      gdRenderTable(); updateGastosKPI();
+      gdSyncStatus(`✓ ${gastosMesLabel()} · ${GD_DATA.filter(g=>g.total<0).length} filas cargadas`,'var(--green)');
+    } else { gdSyncStatus(`Sin datos en Gastos_dashboard para ${gastosMesLabel()}`,'var(--grey-text)'); }
+  } catch(err) { gdSyncStatus(`Error: ${err.message}`,'var(--red)'); }
+}
+
+async function gdAutoLoad() {
+  gdSyncStatus('','');
+  if (!BACKEND_URL) { GD_DATA=[]; gdMostrarDrop(); return; }
+  const mesKey = gastosMesKey();
+  try {
+    const result = await api('loadGastosDashboard',{mesKey});
+    if (result?.rows?.length) {
+      GD_DATA = result.rows.map((r,i) => ({id:i,rowId:r.rowId,fecha:r.fecha,concepto:r.concepto,total:parseFloat(r.total)||0,selected:r.selected===1||r.selected==='1'||r.selected===true,esProv:r.esProv===1||r.esProv==='1'||r.esProv===true}));
+      document.getElementById('gd-drop-wrap').style.display  = 'none';
+      document.getElementById('gd-table-wrap').style.display = 'block';
+      gdRenderTable(); gdRenderFooter(); updateGastosKPI();
+      gdSyncStatus(`✓ ${gastosMesLabel()} · ${GD_DATA.filter(g=>g.total<0).length} filas en Gastos_dashboard`,'var(--green)');
       return;
     }
-  }
-
-  // Sin backend, o sin datos en el Sheets: caché local como fallback
-  const cached=LS.get(`gastos_${key}`);
-  if(cached?.length){
-    GASTOS_DATA = cached.map((g,i) => ({...g, id: g.id??i}));
-    mostrarGastosCargados(label, 'este dispositivo');
-    return;
-  }
-  setGastosDriveStatus(`Sin datos guardados para ${label}`,'var(--grey-text)');
+  } catch(e) { console.warn('gdAutoLoad:',e.message); }
+  GD_DATA=[]; gdMostrarDrop();
 }
 
-function mostrarGastosCargados(label, fuente){
-  document.getElementById('upload-zone-wrapper').style.display='none';
-  document.getElementById('gastos-table-wrap').style.display='block';
-  renderGastosTable();
-  updateGastosKPI();
-  setGastosDriveStatus(`✓ ${label} cargado (${fuente})`,'var(--green)');
-  document.getElementById('btn-guardar-drive').style.display='';
+function gdMostrarDrop() {
+  const dw = document.getElementById('gd-drop-wrap');
+  const tw = document.getElementById('gd-table-wrap');
+  if(dw) dw.style.display='block';
+  if(tw) tw.style.display='none';
 }
 
-function parseCSVLine(line){
-  // Simple CSV parser that handles quoted fields
-  const result=[];
-  let cur=''; let inQ=false;
-  for(let i=0;i<line.length;i++){
-    const c=line[i];
-    if(c==='"'){ if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ; }
-    else if(c===','&&!inQ){ result.push(cur); cur=''; }
-    else cur+=c;
-  }
-  result.push(cur);
-  return result;
+function gdSyncStatus(msg,color) {
+  const el=document.getElementById('gd-sync-status'); if(el){el.textContent=msg;el.style.color=color||'var(--grey-text)';}
 }
 
-// Check Drive for saved data when switching months
-async function checkGastosGuardados(){
-  const key=gastosMesKey();
-  const label=gastosMesLabel();
-  const btnCargar=document.getElementById('btn-cargar-drive');
-  const btnGuardar=document.getElementById('btn-guardar-drive');
-  if(!btnCargar) return;
-
-  // 1. Comprobar caché local (LS) — instantáneo
-  const cached=LS.get(`gastos_${key}`);
-  if(cached && cached.length){
-    btnCargar.style.display='';
-    btnCargar.innerHTML=`☁️ Cargar ${label}`;
-    setGastosDriveStatus(`✓ Datos guardados en este dispositivo (${label})`,'var(--blue)');
-    return;
-  }
-
-  // 2. Si no hay caché local, comprobar el backend (para cuando abres desde otro ordenador)
-  if(!BACKEND_URL){
-    btnCargar.style.display='none';
-    setGastosDriveStatus('Sin backend conectado — los gastos solo se guardan en este dispositivo','var(--orange)');
-    return;
-  }
-
-  try{
-    const result=await api('loadGastos', {mesKey: key});
-    if(result?.rows?.length){
-      btnCargar.style.display='';
-      btnCargar.innerHTML=`☁️ Cargar ${label}`;
-      setGastosDriveStatus(`✓ Datos de ${label} guardados en Sheets (${result.rows.length} líneas)`,'var(--green)');
-    } else {
-      btnCargar.style.display='none';
-      setGastosDriveStatus(`Sin gastos guardados para ${label} todavía`,'var(--grey-text)');
-    }
-  }catch(e){
-    btnCargar.style.display='none';
-    setGastosDriveStatus('Error comprobando backend: '+e.message,'var(--red)');
-  }
+// Aliases para compatibilidad con el código existente que llama las funciones antiguas
+function gastosMesKey()    { return `${finYear}-${String(finMonth+1).padStart(2,'0')}`; }
+function gastosMesLabel()  { return `${MN[finMonth]} ${finYear}`; }
+function clearGastos()     { gdLimpiar(); updateGastosKPI(); }
+function filterGastos()    { gdRenderTable(); }
+function renderGastosTable() { gdRenderTable(); }
+function updateGastosFooter(){ gdRenderFooter(); }
+function toggleGastoRow(id,checked)   { gdToggle(id,checked); }
+function toggleGastoProv(id,checked)  { gdToggleProv(id,checked); }
+function toggleAllGastos(checked)     { gdToggleAll(checked); }
+function guardarGastosDrive()         { gdGuardar(); }
+function cargarGastosDrive()          { gdCargar(); }
+function setGastosDriveStatus(m,c)    { gdSyncStatus(m,c); }
+function mostrarGastosCargados(l,f)   {
+  document.getElementById('gd-drop-wrap').style.display='none';
+  document.getElementById('gd-table-wrap').style.display='block';
+  gdRenderTable(); updateGastosKPI();
+  gdSyncStatus(`✓ ${l} cargado (${f})·`,'var(--green)');
 }
+
 // ──────────────────────────────────────────────────────────────────
 
 // ── RESULTADO TAB
