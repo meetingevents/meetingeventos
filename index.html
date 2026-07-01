@@ -1590,7 +1590,7 @@ async function loadRealtimeData() {
     const json = await resp.json();
     if (!json.success) throw new Error(json.error);
 
-    const { comisiones, monthlyTotals } = json.data;
+    const { comisiones, monthlyTotals, gastosDashboard } = json.data;
 
     // ── Actualizar MONTHLY_TOTALS y YEAR_TOTALS desde Sheets ──
     // Backend verificado: columna TB_COL=12 corregida, da datos correctos
@@ -1667,6 +1667,35 @@ async function loadRealtimeData() {
         console.log(`✅ ${D.length} eventos actualizados desde COMISIONES en tiempo real`);
       } else {
         console.warn(`Solo ${newD.length} eventos recibidos (esperados 200+) — manteniendo array D local`);
+      }
+    }
+
+
+    // ── Cargar Gastos_dashboard desde Sheets ──────────────────────────
+    if (gastosDashboard?.rows?.length) {
+      const mk = gastosMesKey();
+      const filasMes = gastosDashboard.rows.filter(r => r.mesKey === mk);
+      if (filasMes.length) {
+        GD_DATA = filasMes.map((r, i) => ({
+          id:       i,
+          rowId:    r.rowId,
+          fecha:    r.fecha,
+          concepto: r.concepto,
+          total:    r.total,
+          selected: r.selected,
+          esProv:   r.esProv,
+        }));
+        // Mostrar tabla si hay datos del mes activo
+        const dw = document.getElementById('gd-drop-wrap');
+        const tw = document.getElementById('gd-table-wrap');
+        if (dw) dw.style.display = 'none';
+        if (tw) tw.style.display = 'block';
+        gdRenderTable && gdRenderTable();
+        updateGastosKPI && updateGastosKPI();
+        gdSyncStatus && gdSyncStatus(
+          `✓ ${gastosMesLabel()} · ${filasMes.filter(r=>r.total<0).length} gastos cargados desde Sheets`,
+          'var(--green)'
+        );
       }
     }
 
@@ -3286,36 +3315,22 @@ function gdRenderFooter() {
 async function gdGuardar() {
   if (!GD_DATA.length) { alert('No hay gastos cargados para guardar.'); return; }
   if (!BACKEND_URL)    { alert('Conecta el backend primero (botón ⚙️).'); return; }
-
+  gdSyncStatus('💾 Guardando en Sheets...', 'var(--blue)');
   const mesKey = gastosMesKey();
-  const rows   = GD_DATA.map(g => ({fecha:g.fecha,concepto:g.concepto,total:g.total,selected:g.selected?1:0,esProv:g.esProv?1:0}));
-
-  // Apps Script tiene límite de URL ~8KB. Enviamos en lotes de 20 filas.
-  const LOTE = 20;
-  const lotes = [];
-  for (let i = 0; i < rows.length; i += LOTE) lotes.push(rows.slice(i, i + LOTE));
-
-  gdSyncStatus(`💾 Guardando ${rows.length} filas en ${lotes.length} lote${lotes.length>1?'s':''}...`, 'var(--blue)');
-
   try {
-    for (let i = 0; i < lotes.length; i++) {
-      gdSyncStatus(`💾 Enviando lote ${i+1}/${lotes.length}...`, 'var(--blue)');
-      // El primer lote limpia el mes (clearFirst:1), los siguientes solo añaden
-      const payload = { mesKey, rows: lotes[i], clearFirst: i===0 ? 1 : 0 };
-      const result  = await apiPost('saveGastosDashboard', payload);
-      if (!result) {
-        gdSyncStatus(`⚠️ Error en lote ${i+1} — intenta de nuevo`, 'var(--red)');
-        return;
-      }
-    }
-
-    gdSyncStatus(`✓ ${gastosMesLabel()} guardado · ${GD_DATA.filter(g=>g.selected&&g.total<0).length} gastos seleccionados`, 'var(--green)');
-
-    // Recargar para obtener rowIds
-    const fresh = await api('loadGastosDashboard', {mesKey});
-    if (fresh?.rows?.length) {
-      GD_DATA = fresh.rows.map((r,i) => ({id:i,rowId:r.rowId,fecha:r.fecha,concepto:r.concepto,total:parseFloat(r.total)||0,selected:r.selected===1||r.selected==='1'||r.selected===true,esProv:r.esProv===1||r.esProv==='1'||r.esProv===true}));
-      gdRenderTable(); updateGastosKPI();
+    const rows = GD_DATA.map(g => ({
+      fecha:     (g.fecha||'').slice(0,20),
+      concepto:  (g.concepto||'').slice(0,100),  // truncar para no superar límite URL
+      total:     g.total,
+      selected:  g.selected ? 1 : 0,
+      esProv:    g.esProv   ? 1 : 0
+    }));
+    const result = await api('saveGastosDashboard', { mesKey, rows, clearFirst: 1 });
+    if (result) {
+      gdSyncStatus(`✓ ${gastosMesLabel()} guardado · ${GD_DATA.filter(g=>g.selected&&g.total<0).length} gastos`, 'var(--green)');
+      // Los rowIds llegan en el próximo getAllData (botón 🔄)
+    } else {
+      gdSyncStatus('⚠️ Sin respuesta — pulsa 🔄 para verificar', 'var(--orange)');
     }
   } catch(err) { gdSyncStatus(`⚠️ Error: ${err.message}`, 'var(--red)'); }
 }
@@ -3344,43 +3359,10 @@ async function apiPost(action, data) {
 
 async function gdCargar() {
   if (!BACKEND_URL) { alert('Conecta el backend primero (botón ⚙️).'); return; }
-  gdSyncStatus('☁️ Cargando desde Gastos_dashboard...','var(--blue)');
-  const mesKeyLocal = gastosMesKey(); // ej: "2026-01"
-  try {
-    // Obtener la lista de meses disponibles en el Sheets
-    const lista = await api('listGastosDashboardMeses');
-    const mesesDisp = lista?.meses || [];
-
-    if (mesesDisp.length === 0) {
-      gdSyncStatus('La hoja Gastos_dashboard está vacía — sube un Excel primero','var(--orange)');
-      return;
-    }
-
-    // Buscar el mesKey del Sheets que coincide con el mes seleccionado
-    // Usar el valor exacto tal como está guardado en el Sheets (con trim)
-    const mesKeySheets = mesesDisp.find(m => m.trim() === mesKeyLocal.trim());
-
-    if (!mesKeySheets) {
-      gdSyncStatus(`Enero ${finYear} no tiene datos guardados. Meses con datos: ${mesesDisp.join(', ')}`, 'var(--orange)');
-      return;
-    }
-
-    const result = await api('loadGastosDashboard', {mesKey: mesKeySheets});
-    if (result?.rows?.length) {
-      GD_DATA = result.rows.map((r,i) => ({
-        id:i, rowId:r.rowId, fecha:r.fecha, concepto:r.concepto,
-        total:parseFloat(r.total)||0,
-        selected:r.selected===1||r.selected==='1'||r.selected===true,
-        esProv:r.esProv===1||r.esProv==='1'||r.esProv===true
-      }));
-      document.getElementById('gd-drop-wrap').style.display  = 'none';
-      document.getElementById('gd-table-wrap').style.display = 'block';
-      gdRenderTable(); updateGastosKPI();
-      gdSyncStatus(`✓ ${gastosMesLabel()} · ${GD_DATA.filter(g=>g.total<0).length} gastos cargados desde Sheets`, 'var(--green)');
-    } else {
-      gdSyncStatus(`Sin filas para ${mesKeySheets} — debug: ${result?.debug||''}`, 'var(--orange)');
-    }
-  } catch(err) { gdSyncStatus(`Error: ${err.message}`, 'var(--red)'); }
+  gdSyncStatus('☁️ Cargando...', 'var(--blue)');
+  // Recargar todos los datos desde el backend (igual que el botón 🔄)
+  // getAllData ya incluye Gastos_dashboard — es la forma más fiable
+  await loadRealtimeData();
 }
 
 async function gdAutoLoad() {
