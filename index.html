@@ -1201,7 +1201,6 @@ tr:hover td{background:var(--blue-glass);}
                 <thead><tr>
                   <th style="width:36px"></th>
                   <th>Fecha</th><th>Concepto</th><th>Importe</th>
-                  <th style="width:110px;text-align:center">¿Pago proveedor?</th>
                 </tr></thead>
                 <tbody id="gastos-tbody"></tbody>
               </table>
@@ -1433,7 +1432,7 @@ let BACKEND_URL = localStorage.getItem('meeting_backend_url') || '';
 async function api(action, data={}) {
   if(!BACKEND_URL) return null; // silent — no backend configured yet
   try {
-    const reads = ['loadGastos','loadEvento','loadAllEventos','loadLiquidaciones','loadAdelantos','listGastosMeses','loadGastosDashboard','ping'];
+    const reads = ['loadGastos','loadEvento','loadAllEventos','loadLiquidaciones','loadAdelantos','listGastosMeses','loadGastosDashboard','listGastosDashboardMeses','ping'];
     const params = reads.includes(action)
       ? new URLSearchParams({action, ...data})
       : new URLSearchParams({action, payload: JSON.stringify(data)});
@@ -3238,22 +3237,20 @@ function gdRenderTable() {
   const tbody = document.getElementById('gastos-tbody'); if(!tbody) return;
   tbody.innerHTML = visible.map(g => {
     let bg='';
-    if(g.selected&&g.esProv) bg='background:rgba(124,58,237,0.05)';
-    else if(g.selected)      bg='background:rgba(220,38,38,0.04)';
-    else                     bg='opacity:.5';
+    if(g.selected) bg='background:rgba(220,38,38,0.04)';
+    else           bg='opacity:.5';
     return `<tr style="${bg}">
       <td style="width:36px;text-align:center;padding:8px"><input type="checkbox" ${g.selected?'checked':''} onchange="gdToggle(${g.id},this.checked)" style="width:15px;height:15px;accent-color:var(--red);cursor:pointer"></td>
       <td style="font-size:10px;color:var(--grey-text);white-space:nowrap;padding:8px 12px">${g.fecha}</td>
       <td style="font-weight:${g.selected?'700':'400'};padding:8px 12px">${g.concepto}</td>
-      <td style="font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;color:${g.esProv?'var(--purple)':'var(--red)'};white-space:nowrap;padding:8px 12px">${fmtNeg(g.total)}</td>
-      <td style="width:110px;text-align:center;padding:8px 12px">${g.selected?`<label style="display:flex;align-items:center;gap:5px;cursor:pointer;justify-content:center"><input type="checkbox" ${g.esProv?'checked':''} onchange="gdToggleProv(${g.id},this.checked)" style="width:13px;height:13px;accent-color:var(--purple);cursor:pointer"><span style="font-size:9px;font-weight:700;color:${g.esProv?'var(--purple)':'var(--grey-text)'}">${g.esProv?'Proveedor':'Marcar'}</span></label>`:'<span style="font-size:9px;color:var(--grey-2)">—</span>'}</td>
+      <td style="font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;color:var(--red);white-space:nowrap;padding:8px 12px">${fmtNeg(g.total)}</td>
     </tr>`;
   }).join('')||'<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--grey-text);font-size:11px">No hay importes negativos en el archivo</td></tr>';
   gdRenderFooter();
 }
 
 function gdToggle(id, checked) {
-  const g=GD_DATA.find(g=>g.id===id); if(g){g.selected=checked; if(!checked)g.esProv=false;}
+  const g=GD_DATA.find(g=>g.id===id); if(g) g.selected=checked;
   gdRenderTable(); updateGastosKPI();
   // Toggle atómico en Sheets (si tiene rowId ya asignado)
   if(g?.rowId) api('toggleGastosDashboardFila',{rowId:g.rowId,selected:g.selected,esProv:g.esProv});
@@ -3265,16 +3262,14 @@ function gdToggleProv(id, checked) {
 }
 function gdToggleAll(checked) {
   const q=(document.getElementById('gastos-search')?.value||'').toLowerCase();
-  GD_DATA.forEach(g=>{ if(g.total<0&&(!q||g.concepto.toLowerCase().includes(q))){g.selected=checked; if(!checked)g.esProv=false;} });
+  GD_DATA.forEach(g=>{ if(g.total<0&&(!q||g.concepto.toLowerCase().includes(q))) g.selected=checked; });
   gdRenderTable(); updateGastosKPI();
 }
 
 function gdRenderFooter() {
   const el=document.getElementById('gastos-footer'); if(!el) return;
   const propios=GD_DATA.filter(g=>g.selected&&g.total<0&&!g.esProv);
-  const provs  =GD_DATA.filter(g=>g.selected&&g.total<0&&g.esProv);
   const totalPropios=Math.abs(propios.reduce((a,g)=>a+g.total,0));
-  const totalProvs  =Math.abs(provs.reduce((a,g)=>a+g.total,0));
   const totalAdelanto=getTotalAdelanto?getTotalAdelanto():0;
   const totalManual  =getTotalGastosManual?getTotalGastosManual():0;
   const totalGastos  =totalPropios+totalAdelanto+totalManual;
@@ -3285,7 +3280,6 @@ function gdRenderFooter() {
       <div><div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--grey-text)">Adelanto gastos fijos</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;color:var(--orange)">− ${totalAdelanto.toLocaleString('es-ES',{minimumFractionDigits:2})} €</div><div style="font-size:10px;color:var(--grey-text)">3 conceptos fijos</div></div>
       <div style="font-size:20px;color:var(--grey-2)">=</div>
       <div style="background:var(--red-bg);padding:10px 16px;border-radius:10px;border:1.5px solid #fca5a5"><div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--red)">Total gastos reales</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:800;color:var(--red)">− ${totalGastos.toLocaleString('es-ES',{minimumFractionDigits:2})} €</div></div>
-      ${totalProvs>0?`<div style="margin-left:auto;background:var(--purple-bg);padding:10px 16px;border-radius:10px;border:1.5px solid #c4b5fd"><div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--purple)">Pagos proveedores (aparte)</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;color:var(--purple)">− ${totalProvs.toLocaleString('es-ES',{minimumFractionDigits:2})} €</div><div style="font-size:10px;color:var(--purple)">${provs.length} mov. · no computan</div></div>`:''}
     </div>`;
 }
 
@@ -3314,17 +3308,42 @@ async function gdGuardar() {
 async function gdCargar() {
   if (!BACKEND_URL) { alert('Conecta el backend primero (botón ⚙️).'); return; }
   gdSyncStatus('☁️ Cargando desde Gastos_dashboard...','var(--blue)');
-  const mesKey = gastosMesKey();
+  const mesKeyLocal = gastosMesKey(); // ej: "2026-01"
   try {
-    const result = await api('loadGastosDashboard',{mesKey});
+    // Obtener la lista de meses disponibles en el Sheets
+    const lista = await api('listGastosDashboardMeses');
+    const mesesDisp = lista?.meses || [];
+
+    if (mesesDisp.length === 0) {
+      gdSyncStatus('La hoja Gastos_dashboard está vacía — sube un Excel primero','var(--orange)');
+      return;
+    }
+
+    // Buscar el mesKey del Sheets que coincide con el mes seleccionado
+    // Usar el valor exacto tal como está guardado en el Sheets (con trim)
+    const mesKeySheets = mesesDisp.find(m => m.trim() === mesKeyLocal.trim());
+
+    if (!mesKeySheets) {
+      gdSyncStatus(`Enero ${finYear} no tiene datos guardados. Meses con datos: ${mesesDisp.join(', ')}`, 'var(--orange)');
+      return;
+    }
+
+    const result = await api('loadGastosDashboard', {mesKey: mesKeySheets});
     if (result?.rows?.length) {
-      GD_DATA = result.rows.map((r,i) => ({id:i,rowId:r.rowId,fecha:r.fecha,concepto:r.concepto,total:parseFloat(r.total)||0,selected:r.selected===1||r.selected==='1'||r.selected===true,esProv:r.esProv===1||r.esProv==='1'||r.esProv===true}));
+      GD_DATA = result.rows.map((r,i) => ({
+        id:i, rowId:r.rowId, fecha:r.fecha, concepto:r.concepto,
+        total:parseFloat(r.total)||0,
+        selected:r.selected===1||r.selected==='1'||r.selected===true,
+        esProv:r.esProv===1||r.esProv==='1'||r.esProv===true
+      }));
       document.getElementById('gd-drop-wrap').style.display  = 'none';
       document.getElementById('gd-table-wrap').style.display = 'block';
       gdRenderTable(); updateGastosKPI();
-      gdSyncStatus(`✓ ${gastosMesLabel()} · ${GD_DATA.filter(g=>g.total<0).length} filas cargadas`,'var(--green)');
-    } else { gdSyncStatus(`Sin datos en Gastos_dashboard para ${gastosMesLabel()}`,'var(--grey-text)'); }
-  } catch(err) { gdSyncStatus(`Error: ${err.message}`,'var(--red)'); }
+      gdSyncStatus(`✓ ${gastosMesLabel()} · ${GD_DATA.filter(g=>g.total<0).length} gastos cargados desde Sheets`, 'var(--green)');
+    } else {
+      gdSyncStatus(`Sin filas para ${mesKeySheets} — debug: ${result?.debug||''}`, 'var(--orange)');
+    }
+  } catch(err) { gdSyncStatus(`Error: ${err.message}`, 'var(--red)'); }
 }
 
 async function gdAutoLoad() {
@@ -3707,9 +3726,7 @@ function getTotalGastosManual(){
 
 function updateGastosKPI(){
   const propios=GD_DATA.filter(g=>g.selected&&g.total<0&&!g.esProv);
-  const provs=GD_DATA.filter(g=>g.selected&&g.total<0&&g.esProv);
   const totalVariables=Math.abs(propios.reduce((a,g)=>a+g.total,0));
-  const totalProvs=Math.abs(provs.reduce((a,g)=>a+g.total,0));
   const totalAdelanto=getTotalAdelanto();
   const totalManual=getTotalGastosManual();
   const totalGastos=totalVariables+totalAdelanto+totalManual;
@@ -3721,7 +3738,6 @@ function updateGastosKPI(){
     <div class="kpi r" style="border-top-color:var(--red)"><span class="kico">🧾</span><div class="kl">Total gastos reales</div><div class="kv" style="color:var(--red)">${fmt(totalGastos)}</div><div class="ks">fijos + variables + manual</div></div>
     <div class="kpi b"><span class="kico">💰</span><div class="kl">Ingresos ${MN[finMonth]}</div><div class="kv bl">${fmt(ingresos)}</div></div>
     <div class="kpi g"><span class="kico">📈</span><div class="kl">Resultado bruto</div><div class="kv">${fmt(ingresos-totalGastos)}</div><div class="ks">antes de IRPF</div></div>
-    ${totalProvs>0?`<div class="kpi p"><span class="kico">🤝</span><div class="kl">Pagos proveedores</div><div class="kv" style="color:var(--purple)">${fmt(totalProvs)}</div><div class="ks">no computan en gastos</div></div>`:''}
   `;
 }
 function clearGastos(){
