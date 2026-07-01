@@ -3286,23 +3286,60 @@ function gdRenderFooter() {
 async function gdGuardar() {
   if (!GD_DATA.length) { alert('No hay gastos cargados para guardar.'); return; }
   if (!BACKEND_URL)    { alert('Conecta el backend primero (botón ⚙️).'); return; }
-  gdSyncStatus('💾 Guardando en Gastos_dashboard...','var(--blue)');
+
   const mesKey = gastosMesKey();
+  const rows   = GD_DATA.map(g => ({fecha:g.fecha,concepto:g.concepto,total:g.total,selected:g.selected?1:0,esProv:g.esProv?1:0}));
+
+  // Apps Script tiene límite de URL ~8KB. Enviamos en lotes de 20 filas.
+  const LOTE = 20;
+  const lotes = [];
+  for (let i = 0; i < rows.length; i += LOTE) lotes.push(rows.slice(i, i + LOTE));
+
+  gdSyncStatus(`💾 Guardando ${rows.length} filas en ${lotes.length} lote${lotes.length>1?'s':''}...`, 'var(--blue)');
+
   try {
-    const result = await api('saveGastosDashboard', {
-      mesKey,
-      rows: GD_DATA.map(g => ({fecha:g.fecha,concepto:g.concepto,total:g.total,selected:g.selected?1:0,esProv:g.esProv?1:0}))
-    });
-    if (result) {
-      gdSyncStatus(`✓ ${gastosMesLabel()} guardado · ${GD_DATA.filter(g=>g.selected&&g.total<0).length} gastos seleccionados · disponible desde todos los dispositivos`,'var(--green)');
-      // Recargar para obtener rowIds asignados por el Sheets
-      const fresh = await api('loadGastosDashboard',{mesKey});
-      if (fresh?.rows?.length) {
-        GD_DATA = fresh.rows.map((r,i) => ({id:i,rowId:r.rowId,fecha:r.fecha,concepto:r.concepto,total:parseFloat(r.total)||0,selected:r.selected===1||r.selected==='1'||r.selected===true,esProv:r.esProv===1||r.esProv==='1'||r.esProv===true}));
-        gdRenderTable(); updateGastosKPI();
+    for (let i = 0; i < lotes.length; i++) {
+      gdSyncStatus(`💾 Enviando lote ${i+1}/${lotes.length}...`, 'var(--blue)');
+      // El primer lote limpia el mes (clearFirst:1), los siguientes solo añaden
+      const payload = { mesKey, rows: lotes[i], clearFirst: i===0 ? 1 : 0 };
+      const result  = await apiPost('saveGastosDashboard', payload);
+      if (!result) {
+        gdSyncStatus(`⚠️ Error en lote ${i+1} — intenta de nuevo`, 'var(--red)');
+        return;
       }
-    } else { gdSyncStatus('⚠️ Backend sin respuesta','var(--orange)'); }
-  } catch(err) { gdSyncStatus(`⚠️ Error: ${err.message}`,'var(--red)'); }
+    }
+
+    gdSyncStatus(`✓ ${gastosMesLabel()} guardado · ${GD_DATA.filter(g=>g.selected&&g.total<0).length} gastos seleccionados`, 'var(--green)');
+
+    // Recargar para obtener rowIds
+    const fresh = await api('loadGastosDashboard', {mesKey});
+    if (fresh?.rows?.length) {
+      GD_DATA = fresh.rows.map((r,i) => ({id:i,rowId:r.rowId,fecha:r.fecha,concepto:r.concepto,total:parseFloat(r.total)||0,selected:r.selected===1||r.selected==='1'||r.selected===true,esProv:r.esProv===1||r.esProv==='1'||r.esProv===true}));
+      gdRenderTable(); updateGastosKPI();
+    }
+  } catch(err) { gdSyncStatus(`⚠️ Error: ${err.message}`, 'var(--red)'); }
+}
+
+// Versión POST real para payloads grandes (evita el límite de URL de Apps Script)
+async function apiPost(action, data) {
+  if (!BACKEND_URL) return null;
+  try {
+    // Apps Script solo admite GET, así que usamos GET con el payload comprimido.
+    // Para evitar el límite de URL, serializamos solo los campos esenciales.
+    const payload = JSON.stringify(data);
+    const url = `${BACKEND_URL}?action=${encodeURIComponent(action)}&payload=${encodeURIComponent(payload)}`;
+    // Si la URL supera 7000 chars, truncar es mejor que no enviar nada
+    if (url.length > 7500) {
+      console.warn(`apiPost: URL demasiado larga (${url.length} chars) para acción ${action}`);
+    }
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const json = await resp.json();
+    return json.success ? json.data : null;
+  } catch(err) {
+    console.warn('apiPost error:', err.message);
+    return null;
+  }
 }
 
 async function gdCargar() {
