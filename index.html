@@ -1671,32 +1671,10 @@ async function loadRealtimeData() {
     }
 
 
-    // ── Cargar Gastos_dashboard desde Sheets ──────────────────────────
+    // ── Guardar TODOS los datos de Gastos_dashboard en memoria ──────────
     if (gastosDashboard?.rows?.length) {
-      const mk = gastosMesKey();
-      const filasMes = gastosDashboard.rows.filter(r => r.mesKey === mk);
-      if (filasMes.length) {
-        GD_DATA = filasMes.map((r, i) => ({
-          id:       i,
-          rowId:    r.rowId,
-          fecha:    r.fecha,
-          concepto: r.concepto,
-          total:    r.total,
-          selected: r.selected,
-          esProv:   r.esProv,
-        }));
-        // Mostrar tabla si hay datos del mes activo
-        const dw = document.getElementById('gd-drop-wrap');
-        const tw = document.getElementById('gd-table-wrap');
-        if (dw) dw.style.display = 'none';
-        if (tw) tw.style.display = 'block';
-        gdRenderTable && gdRenderTable();
-        updateGastosKPI && updateGastosKPI();
-        gdSyncStatus && gdSyncStatus(
-          `✓ ${gastosMesLabel()} · ${filasMes.filter(r=>r.total<0).length} gastos cargados desde Sheets`,
-          'var(--green)'
-        );
-      }
+      GD_ALL_ROWS = gastosDashboard.rows; // todas las filas de todos los meses
+      gdCargarMesActual(); // mostrar el mes que esté seleccionado ahora
     }
 
     DATA_LOADED = true;
@@ -2412,6 +2390,43 @@ recalcTotals();
 
 // ── GASTOS STATE
 let GD_DATA = [];
+let GD_ALL_ROWS = []; // todas las filas de Gastos_dashboard (todos los meses)
+
+function gdCargarMesActual() {
+  const mk = gastosMesKey();
+  const filasMes = GD_ALL_ROWS.filter(r => String(r.mesKey).trim() === mk.trim());
+  if (filasMes.length) {
+    GD_DATA = filasMes.map((r, i) => ({
+      id:       i,
+      rowId:    r.rowId,
+      fecha:    r.fecha,
+      concepto: r.concepto,
+      total:    typeof r.total === 'number' ? r.total : parseFloat(String(r.total).replace(',','.')) || 0,
+      selected: r.selected === true || r.selected === 1 || r.selected === '1',
+      esProv:   r.esProv   === true || r.esProv   === 1 || r.esProv   === '1',
+    }));
+    const dw = document.getElementById('gd-drop-wrap');
+    const tw = document.getElementById('gd-table-wrap');
+    if (dw) dw.style.display = 'none';
+    if (tw) tw.style.display = 'block';
+    if (typeof gdRenderTable   === 'function') gdRenderTable();
+    if (typeof updateGastosKPI === 'function') updateGastosKPI();
+    if (typeof gdSyncStatus    === 'function') gdSyncStatus(
+      `✓ ${gastosMesLabel()} · ${filasMes.filter(r=>r.total<0).length} gastos cargados desde Sheets`,
+      'var(--green)'
+    );
+  } else {
+    GD_DATA = [];
+    if (typeof gdMostrarDrop === 'function') gdMostrarDrop();
+    if (GD_ALL_ROWS.length) {
+      const meses = [...new Set(GD_ALL_ROWS.map(r=>r.mesKey))].sort();
+      if (typeof gdSyncStatus === 'function') gdSyncStatus(
+        `Sin datos para ${gastosMesLabel()}. Meses con datos: ${meses.join(', ')}`,
+        'var(--orange)'
+      );
+    }
+  }
+}
 // ── LIQUIDACION STATE
 let LIQ_HISTORY = [];
 
@@ -2469,7 +2484,7 @@ function goFinTab(t){
   });
   if(t==='dashboard') renderFinDashboard();
   if(t==='ingresos') renderIngresosTable();
-  if(t==='gastos'){ renderAdelanto(); autoLoadGastosMes(); renderGastosManualTable(); }
+  if(t==='gastos'){ renderAdelanto(); gdCargarMesActual(); renderGastosManualTable(); }
   if(t==='resultado') renderResultado();
   if(t==='liquidacion') renderLiquidacion();
   if(t==='irpf') renderIrpfPage();
@@ -2595,6 +2610,7 @@ function setFinMonth(m){
   finMonth=m;
   document.querySelectorAll('.fmb').forEach((b,i)=>b.classList.toggle('on',i===m));
   goFinTab(curFinTab);
+  if (GD_ALL_ROWS.length) gdCargarMesActual(); // recargar gastos del nuevo mes desde memoria
   syncMesActual();
 }
 
@@ -3359,10 +3375,12 @@ async function apiPost(action, data) {
 
 async function gdCargar() {
   if (!BACKEND_URL) { alert('Conecta el backend primero (botón ⚙️).'); return; }
-  gdSyncStatus('☁️ Cargando...', 'var(--blue)');
-  // Recargar todos los datos desde el backend (igual que el botón 🔄)
-  // getAllData ya incluye Gastos_dashboard — es la forma más fiable
-  await loadRealtimeData();
+  if (GD_ALL_ROWS.length) {
+    gdCargarMesActual(); // ya tenemos los datos, solo filtrar por mes
+  } else {
+    gdSyncStatus('☁️ Cargando...', 'var(--blue)');
+    await loadRealtimeData(); // pedir datos frescos al backend
+  }
 }
 
 async function gdAutoLoad() {
